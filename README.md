@@ -22,13 +22,6 @@ ESPHome-Leistungsbegrenzer für Athom ESP32-C3 Smart Plug V3. Schaltet bei Über
 └─────────────────┘
 ```
 
-### Zustände
-
-- **Normal**: Relais AN, LED dauerhaft, Taste → Auslösen
-- **Ausgelöst**: Relais AUS, LED blinkt, Taste → Reset
-
-### Funktionen
-
 - **Überlastschutz** - Trennt bei Watt-Überschreitung (0-3000W einstellbar)
 - **Stromstärkeschutz** - Trennt bei >16A (YAML konfigurierbar)
 - **LED-Anzeige** - Dauerlicht = AN, Blinken = ausgelöst
@@ -36,6 +29,13 @@ ESPHome-Leistungsbegrenzer für Athom ESP32-C3 Smart Plug V3. Schaltet bei Über
 - **Persistenz** - Zustände überleben Neustart
 - **Offline-fähig** - Funktioniert ohne WiFi
 - **Messung** - Alle 50ms
+
+## Details
+
+### Zustände
+
+- **Normal**: Relais AN, LED dauerhaft, Taste → Auslösen
+- **Ausgelöst**: Relais AUS, LED blinkt, Taste → Reset
 
 ### Boot-Reihenfolge
 
@@ -52,7 +52,9 @@ Taste **4+ Sekunden** = löscht alles (WiFi, Einstellungen, Energie). **Vorsicht
 
 Standardmäßig deaktiviert. Zum Aktivieren: `Reset Trip`-Button in `esphome.yaml` einkommentieren.
 
-## Konfiguration
+## Technik
+
+### Konfiguration
 
 ```yaml
 substitutions:
@@ -64,58 +66,33 @@ substitutions:
 
 Leistungsgrenze ändern: `initial_value` in Number-Komponente anpassen.
 
-## Technische Details
+### Hardware
 
-### Hardware (Athom Smart Plug V3)
+Athom Smart Plug V3 (ESP32-C3): GPIO3 Taster, GPIO5 Relais, GPIO6 LED, GPIO20 CSE7766.
 
-| GPIO | Funktion |
-|------|----------|
-| 3 | Taster |
-| 5 | Relais |
-| 6 | LED |
-| 20 | CSE7766 (Leistungsmessung) |
+**Schutzgrenzen**: Leistung 0-3000W (Home Assistant), Stromstärke 16A (nur YAML).
 
-### Schutzgrenzen
-
-| Grenze | Wert | Konfigurierbar |
-|--------|------|----------------|
-| Leistung | 0-3000W | Home Assistant |
-| Stromstärke | 16A | Nur YAML |
-
-### Flash-Persistenz
-
-| Wert | Beschreibung |
-|------|--------------|
-| `relay_state` | Relais-Zustand vor Neustart |
-| `is_tripped` | Ausgelöst ja/nein |
-| `power_limit` | Schwelle in Watt |
-| `total_energy` | Kumulierte kWh |
+**Flash-Persistenz**: `relay_state`, `is_tripped`, `power_limit`, `total_energy` überleben Neustart.
 
 ### Entitäten
 
-**Steuerung**
-
 | Entität | Beschreibung |
 |---------|--------------|
-| **Power Limit** | ✏️ Auslöseschwelle (0-3000W) |
-| **Restart** | ✏️ Gerät neustarten |
-| **Factory Reset** | ✏️ Werkseinstellungen |
-| **Safe Mode** | ✏️ OTA-Wiederherstellung |
-
-**Status**
-
-| Entität | Beschreibung |
-|---------|--------------|
-| **Tripped** | 🔴 Ausgelöst ja/nein |
-| **Power** | 📊 Wattzahl |
-| **Voltage** | 📊 Spannung (V) |
-| **Current** | 📊 Stromstärke (A) |
-| **Energy** | 📊 Sitzungs-kWh |
-| **Total Energy** | 📊 Gesamt-kWh |
-| **Total Daily Energy** | 📊 Tages-kWh |
-| **Power Factor** | 📊 Leistungsfaktor |
-| **Status** | 📊 Online-Status |
-| **WiFi Signal** | 📊 Signalstärke |
+| **Power Limit** | Auslöseschwelle 0-3000W (Schreibbar) |
+| **Restart** | Gerät neustarten (Schreibbar) |
+| **Factory Reset** | Werkseinstellungen (Schreibbar) |
+| **Safe Mode** | OTA-Wiederherstellung (Schreibbar) |
+| **Tripped** | Ausgelöst ja/nein |
+| **Power** | Wattzahl |
+| **Voltage** | Spannung (V) |
+| **Current** | Stromstärke (A) |
+| **Energy** | Sitzungs-kWh |
+| **Total Energy** | Gesamt-kWh |
+| **Total Daily Energy** | Tages-kWh |
+| **Power Factor** | Leistungsfaktor |
+| **Status** | Online-Status |
+| **WiFi Signal** | Signalstärke |
+| **ESPHome Version** | Firmware-Version |
 
 ## Referenz
 

@@ -390,6 +390,10 @@ text_sensor:
     icon: mdi:clock
     entity_category: diagnostic
 
+  - platform: version
+    name: "ESPHome Version"
+    entity_category: diagnostic
+
 ################################################
 # TIME
 ################################################
