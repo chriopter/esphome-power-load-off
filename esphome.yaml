@@ -1,16 +1,15 @@
 ################################################
-# ATHOM SMART PLUG V3 - POWER LIMITER
-################################################
-# Self-contained power limiter for Athom ESP32-C3 Smart Plug V3.
-# Based on: https://github.com/athom-tech/esp32-configs/blob/main/athom-smart-plug.yaml
 #
-# Trips when wattage exceeds threshold, LED blinks when tripped.
+# ATHOM SMART PLUG V3 - ORIGINAL
+# Source: https://github.com/athom-tech/esp32-configs/blob/main/athom-smart-plug.yaml
+#
+################################################
 
 substitutions:
   name: "power-limiter"
   friendly_name: "Power Limiter"
   room: ""
-  device_description: "athom esp32-c3 smart plug with power limiter"
+  device_description: "athom esp32-c3 smart plug with current limiter"
   project_name: "Athom Technology.Smart Plug V3"
   project_version: "v2.0.0"
   sensor_update_interval: 50ms
@@ -39,16 +38,6 @@ esphome:
     board_build.mcu: esp32c3
     board_build.variant: esp32c3
     board_build.flash_mode: dio
-  on_boot:
-    - priority: 600
-      then:
-        - if:
-            condition:
-              switch.is_on: relay
-            then:
-              - light.turn_on: blue_led
-            else:
-              - script.execute: led_blink
 
 esp32:
   board: esp32-c3-devkitm-1
@@ -93,19 +82,11 @@ uart:
   stop_bits: 1
   parity: EVEN
 
-################################################
-# GLOBALS
-################################################
-
 globals:
   - id: total_energy
     type: float
     restore_value: yes
     initial_value: '0.0'
-
-################################################
-# BINARY SENSORS
-################################################
 
 binary_sensor:
   - platform: status
@@ -131,16 +112,6 @@ binary_sensor:
           - ON for at least 4s
         then:
           - button.press: factory_reset_button
-
-  - platform: template
-    name: "Power Off"
-    icon: "mdi:alert-circle"
-    device_class: problem
-    lambda: 'return !id(relay).state;'
-
-################################################
-# SENSORS
-################################################
 
 sensor:
   - platform: uptime
@@ -171,13 +142,6 @@ sensor:
       filters:
         - throttle_average: ${sensor_update_interval}
         - lambda: if (x < 0.060) return 0.0; else return x;
-      on_value:
-        then:
-          - lambda: |-
-              if (id(relay).state && x > id(current_limit).state) {
-                ESP_LOGW("limiter", "OVERLOAD: %.2fA > %.1fA - OFF", x, id(current_limit).state);
-                id(relay).turn_off();
-              }
 
     voltage:
       name: "Voltage"
@@ -249,10 +213,6 @@ sensor:
     filters:
       - multiply: 0.001
 
-################################################
-# BUTTONS
-################################################
-
 button:
   - platform: restart
     name: "Restart"
@@ -267,28 +227,6 @@ button:
     name: "Safe Mode"
     entity_category: config
 
-################################################
-# CURRENT LIMIT NUMBER
-################################################
-
-number:
-  - platform: template
-    name: "Current Limit"
-    id: current_limit
-    icon: "mdi:current-ac"
-    unit_of_measurement: "A"
-    entity_category: config
-    optimistic: true
-    restore_value: true
-    initial_value: 10
-    min_value: 0
-    max_value: 16
-    step: 0.01
-
-################################################
-# RELAY SWITCH
-################################################
-
 switch:
   - platform: gpio
     name: "Power"
@@ -296,17 +234,8 @@ switch:
       number: GPIO5
       mode: OUTPUT
     id: relay
-    icon: "mdi:power-socket-eu"
+    icon: "mdi:${power_plug_type}"
     restore_mode: RESTORE_DEFAULT_OFF
-    on_turn_on:
-      - script.stop: led_blink
-      - light.turn_on: blue_led
-    on_turn_off:
-      - script.execute: led_blink
-
-################################################
-# STATUS LED
-################################################
 
 light:
   - platform: status_led
@@ -317,10 +246,6 @@ light:
     pin:
       inverted: true
       number: GPIO6
-
-################################################
-# TEXT SENSORS
-################################################
 
 text_sensor:
   - platform: wifi_info
@@ -347,10 +272,6 @@ text_sensor:
     name: "ESPHome Version"
     entity_category: diagnostic
 
-################################################
-# TIME
-################################################
-
 time:
   - platform: sntp
     id: sntp_time
@@ -371,8 +292,64 @@ time:
                   state: !lambda 'return id(sntp_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
 
 ################################################
-# LED BLINK SCRIPT
+#
+# CURRENT LIMITER - CUSTOM EXTENSION
+# Automatic power cutoff when current exceeds limit
+#
 ################################################
+
+esphome:
+  on_boot:
+    - priority: 600
+      then:
+        - if:
+            condition:
+              switch.is_on: relay
+            then:
+              - light.turn_on: blue_led
+            else:
+              - script.execute: led_blink
+
+binary_sensor:
+  - platform: template
+    name: "Power Off"
+    icon: "mdi:alert-circle"
+    device_class: problem
+    lambda: 'return !id(relay).state;'
+
+sensor:
+  - platform: cse7766
+    current:
+      on_value:
+        then:
+          - lambda: |-
+              if (id(relay).state && x > id(current_limit).state) {
+                ESP_LOGW("limiter", "OVERLOAD: %.2fA > %.1fA - OFF", x, id(current_limit).state);
+                id(relay).turn_off();
+              }
+
+number:
+  - platform: template
+    name: "Current Limit"
+    id: current_limit
+    icon: "mdi:current-ac"
+    unit_of_measurement: "A"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 10
+    min_value: 0
+    max_value: 16
+    step: 0.01
+
+switch:
+  - platform: gpio
+    id: relay
+    on_turn_on:
+      - script.stop: led_blink
+      - light.turn_on: blue_led
+    on_turn_off:
+      - script.execute: led_blink
 
 script:
   - id: led_blink
