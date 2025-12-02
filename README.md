@@ -8,14 +8,69 @@ Basiert auf der offiziellen Athom-Konfiguration (eingebettet, keine externen Abh
 - **Repository**: https://github.com/athom-tech/esp32-configs
 - **Original-Config**: [athom-smart-plug.yaml](https://github.com/athom-tech/esp32-configs/blob/main/athom-smart-plug.yaml)
 
-## Funktionen
+## Funktionsweise
 
-- **Automatischer Überlastschutz** - Löst aus wenn Watt-Grenze überschritten
-- **Stromstärkebegrenzung** - Löst aus wenn Strom 16A überschreitet (konfigurierbar)
-- **Visuelle Rückmeldung** - LED blinkt bei Auslösung, leuchtet dauerhaft bei Stromfluss
-- **Physische Tastenbedienung** - Kurz drücken: Relais umschalten/Reset, Lang drücken (4s): Werksreset
-- **Persistenter Zustand** - Auslösezustand, Leistungsgrenze und Energiesummen überleben Neustarts
-- **Weboberfläche** - Eingebautes Konfigurationsportal auf Port 80
+```
+                    ┌─────────────────────────────────────┐
+                    │           STROMFLUSS                │
+                    └─────────────────────────────────────┘
+                                    │
+                                    ▼
+                    ┌─────────────────────────────────────┐
+                    │      Leistungsmessung (alle 10s)    │
+                    │         Watt / Ampere / Volt        │
+                    └─────────────────────────────────────┘
+                                    │
+                         ┌──────────┴──────────┐
+                         ▼                     ▼
+                ┌─────────────────┐   ┌─────────────────┐
+                │  Watt > Limit?  │   │ Ampere > 16A?   │
+                └─────────────────┘   └─────────────────┘
+                         │                     │
+                         └──────────┬──────────┘
+                                    │ JA
+                                    ▼
+                    ┌─────────────────────────────────────┐
+                    │         🚨 AUSLÖSUNG 🚨             │
+                    │    • Relais AUS (Strom getrennt)    │
+                    │    • LED blinkt                     │
+                    │    • Zustand im Flash gespeichert   │
+                    └─────────────────────────────────────┘
+                                    │
+                                    ▼
+                    ┌─────────────────────────────────────┐
+                    │     Taste kurz drücken = RESET      │
+                    │    • Relais AN (Strom fließt)       │
+                    │    • LED leuchtet dauerhaft         │
+                    └─────────────────────────────────────┘
+```
+
+| Funktion | Beschreibung |
+|----------|--------------|
+| **Überlastschutz** | Trennt Strom wenn Watt-Grenze überschritten (einstellbar 0-3000W) |
+| **Stromstärkeschutz** | Trennt Strom wenn >16A (Hardware-Sicherheit, YAML konfigurierbar) |
+| **LED-Anzeige** | Dauerlicht = Strom fließt, Blinken = ausgelöst |
+| **Tastenbedienung** | Kurz = Reset/Umschalten, Lang (4s) = Werksreset |
+| **Persistenz** | Alle Zustände überleben Stromausfall/Neustart |
+| **Offline-fähig** | Funktioniert komplett ohne WiFi/Internet |
+
+### Zustände
+
+| Zustand | Relais | LED | Kurzer Tastendruck |
+|---------|--------|-----|-------------------|
+| Normal | AN | Dauerlicht | Relais umschalten |
+| Ausgelöst | AUS | Blinkend | Reset |
+
+### Werksreset (Vorsicht!)
+
+- Taste **4+ Sekunden** lang drücken = Werksreset
+- **Löscht alles**: WiFi-Zugangsdaten, Leistungsgrenze, Energiesummen, alle gespeicherten Zustände
+- Gerät startet im AP-Modus für Neueinrichtung
+- **Versehentliches langes Drücken beim Reset vermeiden!**
+
+### Remote-Reset aktivieren
+
+Standardmäßig ist der "Reset Trip"-Button **deaktiviert** - Reset nur über physische Taste möglich. Um Remote-Reset aus Home Assistant zu aktivieren, den `Reset Trip`-Button in `esphome.yaml` einkommentieren.
 
 ## Hardware
 
@@ -28,100 +83,42 @@ Athom Smart Plug V3 (ESP32-C3):
 | 6 | LED (invertiert) |
 | 20 | CSE7766 RX (Leistungsmessung) |
 
-## Zustände
-
-| Zustand | Relais | LED | Kurzer Tastendruck |
-|---------|--------|-----|-------------------|
-| Normal | AN | Dauerlicht | Relais umschalten |
-| Ausgelöst | AUS | Blinkend | Reset |
-
 ## Entitäten
 
-### Leistungsbegrenzer
+### Steuerung (Eingabe möglich)
 
 | Entität | Typ | Beschreibung |
 |---------|-----|--------------|
-| Power Limit | Number | Auslöseschwelle (0-3000W, Standard 100W) |
-| Tripped | Binary Sensor | Überlast-Status |
+| **Power Limit** | Number | ✏️ Auslöseschwelle einstellen (0-3000W) |
+| **Switch** | Switch | ✏️ Relais ein/ausschalten |
+| **Restart** | Button | ✏️ Gerät neustarten |
+| **Factory Reset** | Button | ✏️ Werkseinstellungen |
+| **Safe Mode** | Button | ✏️ OTA-Wiederherstellungsmodus |
+| **Status LED** | Light | ✏️ Blaue LED steuern (Standard: deaktiviert) |
 
-### Leistungsmessung
-
-| Entität | Typ | Beschreibung |
-|---------|-----|--------------|
-| Switch | Switch | Hauptrelais-Steuerung |
-| Power | Sensor | Aktuelle Wattzahl |
-| Voltage | Sensor | Netzspannung |
-| Current | Sensor | Stromstärke (A) |
-| Energy | Sensor | Sitzungs-Energie (kWh) |
-| Total Energy | Sensor | Persistente Gesamtenergie (kWh) |
-| Total Daily Energy | Sensor | Tagesverbrauch |
-| Apparent Power | Sensor | Scheinleistung (VA) |
-| Reactive Power | Sensor | Blindleistung (VAR) |
-| Power Factor | Sensor | Leistungsfaktor |
-
-### Gerätestatus
+### Status (nur lesen)
 
 | Entität | Typ | Beschreibung |
 |---------|-----|--------------|
-| Status | Binary Sensor | Online-Status |
-| Power Button | Binary Sensor | Physische Taste (standardmäßig deaktiviert) |
-| Uptime Sensor | Sensor | Geräte-Betriebszeit |
-| WiFi Signal dB | Sensor | Signalstärke (dBm) |
-| WiFi Signal Percent | Sensor | Signalstärke (%) |
-| IP Address | Text Sensor | Netzwerk-IP |
-| Connected SSID | Text Sensor | WiFi-Netzwerk |
-| Mac Address | Text Sensor | Geräte-MAC |
-| Last Restart | Text Sensor | Neustart-Zeitstempel |
-| Status LED | Light | Blaue LED-Steuerung (standardmäßig deaktiviert) |
-
-### Konfiguration
-
-| Entität | Typ | Beschreibung |
-|---------|-----|--------------|
-| Restart | Button | Gerät neustarten |
-| Factory Reset | Button | Auf Werkseinstellungen zurücksetzen |
-| Safe Mode | Button | OTA-Wiederherstellungsmodus |
-
-## Installation
-
-1. `esphome.yaml` in dein ESPHome-Konfigurationsverzeichnis kopieren
-
-2. Substitutions anpassen:
-   ```yaml
-   substitutions:
-     name: "mein-stecker"
-     friendly_name: "Mein Leistungsbegrenzer"
-   ```
-
-3. Installieren:
-   ```bash
-   esphome run esphome.yaml
-   ```
-
-4. Leistungsgrenze in Home Assistant setzen (Standard: 100W)
-
-## Verwendung
-
-### Normalbetrieb
-- LED leuchtet dauerhaft = Strom fließt
-- Leistung wird alle 10s gemessen (konfigurierbar)
-- Überschreitung = automatische Auslösung
-
-### Bei Auslösung
-- LED blinkt = Strom unterbrochen
-- Kurz Taste drücken zum Zurücksetzen
-
-### Manuelle Bedienung
-- Kurzer Tastendruck = Relais umschalten (wenn nicht ausgelöst)
-
-### Werksreset (Vorsicht!)
-- Taste **4+ Sekunden** lang drücken = Werksreset
-- **Löscht alles**: WiFi-Zugangsdaten, Leistungsgrenze, Energiesummen, alle gespeicherten Zustände
-- Gerät startet im AP-Modus für Neueinrichtung
-- **Versehentliches langes Drücken beim Reset vermeiden!**
-
-### Remote-Reset aktivieren
-Standardmäßig ist der "Reset Trip"-Button **deaktiviert** - Reset nur über physische Taste möglich. Um Remote-Reset aus Home Assistant zu aktivieren, den `Reset Trip`-Button in `esphome.yaml` einkommentieren.
+| **Tripped** | Binary Sensor | 🔴 Ausgelöst ja/nein |
+| **Power** | Sensor | 📊 Aktuelle Wattzahl |
+| **Voltage** | Sensor | 📊 Netzspannung (V) |
+| **Current** | Sensor | 📊 Stromstärke (A) |
+| **Energy** | Sensor | 📊 Sitzungs-Energie (kWh) |
+| **Total Energy** | Sensor | 📊 Gesamtenergie persistent (kWh) |
+| **Total Daily Energy** | Sensor | 📊 Tagesverbrauch (kWh) |
+| **Apparent Power** | Sensor | 📊 Scheinleistung (VA) |
+| **Reactive Power** | Sensor | 📊 Blindleistung (VAR) |
+| **Power Factor** | Sensor | 📊 Leistungsfaktor |
+| **Status** | Binary Sensor | 📊 Online-Status |
+| **Uptime Sensor** | Sensor | 📊 Betriebszeit |
+| **WiFi Signal dB** | Sensor | 📊 Signalstärke (dBm) |
+| **WiFi Signal Percent** | Sensor | 📊 Signalstärke (%) |
+| **IP Address** | Text Sensor | 📊 Netzwerk-IP |
+| **Connected SSID** | Text Sensor | 📊 WiFi-Netzwerk |
+| **Mac Address** | Text Sensor | 📊 Geräte-MAC |
+| **Last Restart** | Text Sensor | 📊 Neustart-Zeitstempel |
+| **Power Button** | Binary Sensor | 📊 Physische Taste (Standard: deaktiviert) |
 
 ## Konfiguration
 
@@ -148,7 +145,9 @@ number:
     initial_value: 200  # Von 100 ändern
 ```
 
-## Flash-Persistenz
+## Technische Details
+
+### Flash-Persistenz
 
 Diese Werte überleben Neustarts (im ESP32-Flash gespeichert):
 
@@ -159,7 +158,7 @@ Diese Werte überleben Neustarts (im ESP32-Flash gespeichert):
 | `power_limit` | Auslöseschwelle in Watt |
 | `total_energy` | Kumulierte kWh |
 
-## Schutzgrenzen
+### Schutzgrenzen
 
 | Grenze | Wert | Konfigurierbar |
 |--------|------|----------------|
@@ -168,17 +167,16 @@ Diese Werte überleben Neustarts (im ESP32-Flash gespeichert):
 
 Stromstärkegrenze ist eine **Hardware-Sicherheit** - schützt vor Überstrom auch wenn Watt-Berechnung fehlschlägt. 16A ist typisches Maximum für EU-Steckdosen.
 
-## Verhaltenshinweise
+### Verhalten
 
-1. **Sicherer Boot**: Relais-Hardware startet AUS, dann wird gespeicherter Zustand aus Flash wiederhergestellt
-2. **Auslöse-Priorität**: Wenn ausgelöst, bleibt Relais AUS unabhängig vom gespeicherten Zustand
-3. **Relais-Schutz**: Home Assistant kann Relais nicht einschalten wenn ausgelöst
-4. **Doppelter Schutz**: Löst bei Wattzahl ODER Stromstärke-Überschreitung aus
-5. **Null-Grenze**: 0W einstellen löst bei jeder Last aus (Leistung > 3W wegen Rauschfilter)
-
-## Offline-Betrieb
-
-Funktioniert **vollständig ohne WiFi**. Wenn kein bekanntes Netzwerk gefunden wird, öffnet der Stecker einen eigenen Access Point (`power-limiter`) für Konfiguration. Alle Kernfunktionen (Überlastschutz, Zustandswiederherstellung, LED-Anzeige) sind lokal.
+| Situation | Verhalten |
+|-----------|-----------|
+| **Boot** | Relais startet AUS, dann wird Flash-Zustand wiederhergestellt |
+| **Boot wenn ausgelöst** | Relais bleibt AUS, LED blinkt |
+| **Ausgelöst + HA schaltet ein** | Wird blockiert, Relais bleibt AUS |
+| **Watt ODER Ampere überschritten** | Löst aus (doppelter Schutz) |
+| **Limit auf 0W** | Löst bei jeder Last >3W aus (Rauschfilter) |
+| **Kein WiFi** | Funktioniert lokal, öffnet AP (`power-limiter`) |
 
 ## Lizenz
 
