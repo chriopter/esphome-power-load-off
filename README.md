@@ -22,18 +22,20 @@ ESPHome-Leistungsbegrenzer für Athom ESP32-C3 Smart Plug V3. Schaltet bei Über
 └─────────────────┘
 ```
 
-Messung alle 50ms.
+### Zustände
+
+- **Normal**: Relais AN, LED dauerhaft, Taste → Auslösen
+- **Ausgelöst**: Relais AUS, LED blinkt, Taste → Reset
 
 ### Funktionen
 
-| Funktion | Beschreibung |
-|----------|--------------|
-| **Überlastschutz** | Trennt bei Watt-Überschreitung (0-3000W einstellbar) |
-| **Stromstärkeschutz** | Trennt bei >16A (YAML konfigurierbar) |
-| **LED-Anzeige** | Dauerlicht = AN, Blinken = ausgelöst |
-| **Taste** | Kurz = Auslösen/Reset, Lang 4s = Werksreset |
-| **Persistenz** | Zustände überleben Neustart |
-| **Offline-fähig** | Funktioniert ohne WiFi |
+- **Überlastschutz** - Trennt bei Watt-Überschreitung (0-3000W einstellbar)
+- **Stromstärkeschutz** - Trennt bei >16A (YAML konfigurierbar)
+- **LED-Anzeige** - Dauerlicht = AN, Blinken = ausgelöst
+- **Taste** - Kurz = Auslösen/Reset, Lang 4s = Werksreset
+- **Persistenz** - Zustände überleben Neustart
+- **Offline-fähig** - Funktioniert ohne WiFi
+- **Messung** - Alle 50ms
 
 ### Boot-Reihenfolge
 
