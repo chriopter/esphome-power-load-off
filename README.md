@@ -32,27 +32,37 @@ ESPHome-Leistungsbegrenzer für Athom ESP32-C3 Smart Plug V3. Schaltet bei Über
 
 ## Details
 
-### Zustände
+<details>
+<summary><strong>Zustände</strong></summary>
 
 - **Normal**: Relais AN, LED dauerhaft, Taste → Auslösen
 - **Ausgelöst**: Relais AUS, LED blinkt, Taste → Reset
 
-### Boot-Reihenfolge
+</details>
+
+<details>
+<summary><strong>Boot-Reihenfolge</strong></summary>
 
 1. Relais startet AUS (Hardware-Sicherheit)
 2. Flash-Zustand wird gelesen
 3. Wenn ausgelöst → bleibt AUS, LED blinkt
 4. Wenn normal → Relais AN
 
-### Werksreset
+</details>
+
+<details>
+<summary><strong>Werksreset</strong></summary>
 
 Taste **4+ Sekunden** = löscht alles (WiFi, Einstellungen, Energie). **Vorsicht beim Reset!**
 
-### Remote-Reset
+</details>
+
+<details>
+<summary><strong>Remote-Reset</strong></summary>
 
 Standardmäßig deaktiviert. Zum Aktivieren: `Reset Trip`-Button in `esphome.yaml` einkommentieren.
 
-## Technik
+</details>
 
 <details>
 <summary><strong>Konfiguration</strong></summary>
@@ -134,10 +144,6 @@ Athom Smart Plug V3 (ESP32-C3):
 
 </details>
 
-## Referenz
+## Referenz & Lizenz
 
-Basiert auf [athom-smart-plug.yaml](https://github.com/athom-tech/esp32-configs/blob/main/athom-smart-plug.yaml) (eingebettet, keine Abhängigkeiten).
-
-## Lizenz
-
-MIT
+Basiert auf [athom-smart-plug.yaml](https://github.com/athom-tech/esp32-configs/blob/main/athom-smart-plug.yaml) (eingebettet, keine Abhängigkeiten). MIT Lizenz.
