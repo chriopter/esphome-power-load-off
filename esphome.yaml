@@ -294,12 +294,13 @@ button:
     name: "Safe Mode"
     entity_category: config
 
-  - platform: template
-    name: "Reset Trip"
-    icon: "mdi:restart-alert"
-    entity_category: config
-    on_press:
-      - script.execute: reset_trip
+  # Uncomment to enable remote reset from Home Assistant
+  # - platform: template
+  #   name: "Reset Trip"
+  #   icon: "mdi:restart-alert"
+  #   entity_category: config
+  #   on_press:
+  #     - script.execute: reset_trip
 
 ################################################
 # POWER LIMIT NUMBER

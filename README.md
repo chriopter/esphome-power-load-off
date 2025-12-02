@@ -43,7 +43,6 @@ Athom Smart Plug V3 (ESP32-C3):
 |--------|------|-------------|
 | Power Limit | Number | Trip threshold (0-3000W, default 100W) |
 | Tripped | Binary Sensor | Overload status |
-| Reset Trip | Button | Clear trip state |
 
 ### Power Monitoring
 
@@ -114,7 +113,15 @@ Athom Smart Plug V3 (ESP32-C3):
 
 ### Manual Control
 - Short press button = toggle relay (when not tripped)
-- Long press 4s = factory reset
+
+### Factory Reset (caution!)
+- Long press button **4+ seconds** = factory reset
+- **Clears everything**: WiFi credentials, power limit, energy totals, all saved state
+- Device reboots into AP mode for fresh setup
+- **Avoid accidental long presses when resetting trip!**
+
+### Enable Remote Reset Trip
+By default, the "Reset Trip" button is **disabled** - trip can only be reset via physical button. To enable remote reset from Home Assistant, uncomment the `Reset Trip` button in `esphome.yaml`.
 
 ## Configuration
 
@@ -141,14 +148,33 @@ number:
     initial_value: 200  # Change from 100
 ```
 
+## Flash Persistence
+
+These values survive reboots (saved to ESP32 flash):
+
+| Value | Description |
+|-------|-------------|
+| `relay_state` | Was relay ON before reboot? |
+| `is_tripped` | Is device in tripped state? |
+| `power_limit` | Trip threshold in watts |
+| `total_energy` | Accumulated kWh |
+
+## Protection Limits
+
+| Limit | Value | Configurable |
+|-------|-------|--------------|
+| Power | 0-3000W | Yes (Home Assistant) |
+| Current | 16A | YAML only (`current_limit` substitution) |
+
+Current limit is a **hardware safety** - protects against overcurrent even if wattage calculation fails. 16A is typical max for EU plugs.
+
 ## Behavior Notes
 
 1. **Safe boot**: Relay hardware starts OFF, then restores saved state from flash
-2. **State persistence**: Relay state, trip state, and power limit survive reboots
-3. **Trip priority**: If tripped, relay stays OFF regardless of saved state
-4. **Relay protection**: Home Assistant cannot turn on relay while tripped
-5. **Dual protection**: Trips on either wattage OR current limit exceeded
-6. **Zero limit**: Setting 0W trips on any load detection (power > 3W due to noise filter)
+2. **Trip priority**: If tripped, relay stays OFF regardless of saved state
+3. **Relay protection**: Home Assistant cannot turn on relay while tripped
+4. **Dual protection**: Trips on either wattage OR current limit exceeded
+5. **Zero limit**: Setting 0W trips on any load detection (power > 3W due to noise filter)
 
 ## License
 
