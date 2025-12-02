@@ -1,181 +1,185 @@
-# Athom Smart Plug V3 - Power Limiter
+# Athom Smart Plug V3 - Leistungsbegrenzer
 
-Self-contained ESPHome power limiter for the Athom ESP32-C3 Smart Plug V3. Automatically cuts power when wattage exceeds a configurable threshold.
+Eigenständiger ESPHome-Leistungsbegrenzer für den Athom ESP32-C3 Smart Plug V3. Schaltet automatisch ab, wenn die Wattzahl einen konfigurierbaren Schwellenwert überschreitet.
 
-## Reference
+## Referenz
 
-Based on the official Athom configuration (vendored, no external dependencies):
+Basiert auf der offiziellen Athom-Konfiguration (eingebettet, keine externen Abhängigkeiten):
 - **Repository**: https://github.com/athom-tech/esp32-configs
-- **Original config**: [athom-smart-plug.yaml](https://github.com/athom-tech/esp32-configs/blob/main/athom-smart-plug.yaml)
+- **Original-Config**: [athom-smart-plug.yaml](https://github.com/athom-tech/esp32-configs/blob/main/athom-smart-plug.yaml)
 
-## Features
+## Funktionen
 
-- **Automatic overload protection** - Trips when watts exceed limit
-- **Current limit protection** - Trips when current exceeds 16A (configurable)
-- **Visual feedback** - LED blinks when tripped, solid when power flowing
-- **Physical button control** - Short press: toggle relay/reset trip, Long press (4s): factory reset
-- **Persistent state** - Trip state, power limit, and energy totals survive reboots
-- **Web interface** - Built-in config portal on port 80
+- **Automatischer Überlastschutz** - Löst aus wenn Watt-Grenze überschritten
+- **Stromstärkebegrenzung** - Löst aus wenn Strom 16A überschreitet (konfigurierbar)
+- **Visuelle Rückmeldung** - LED blinkt bei Auslösung, leuchtet dauerhaft bei Stromfluss
+- **Physische Tastenbedienung** - Kurz drücken: Relais umschalten/Reset, Lang drücken (4s): Werksreset
+- **Persistenter Zustand** - Auslösezustand, Leistungsgrenze und Energiesummen überleben Neustarts
+- **Weboberfläche** - Eingebautes Konfigurationsportal auf Port 80
 
 ## Hardware
 
 Athom Smart Plug V3 (ESP32-C3):
 
-| GPIO | Function |
+| GPIO | Funktion |
 |------|----------|
-| 3 | Button (INPUT_PULLUP, inverted) |
-| 5 | Relay |
-| 6 | LED (inverted) |
-| 20 | CSE7766 RX (power monitoring) |
+| 3 | Taster (INPUT_PULLUP, invertiert) |
+| 5 | Relais |
+| 6 | LED (invertiert) |
+| 20 | CSE7766 RX (Leistungsmessung) |
 
-## States
+## Zustände
 
-| State | Relay | LED | Short Button Press |
-|-------|-------|-----|-------------------|
-| Normal | ON | Solid | Toggle relay |
-| Tripped | OFF | Blinking | Reset trip |
+| Zustand | Relais | LED | Kurzer Tastendruck |
+|---------|--------|-----|-------------------|
+| Normal | AN | Dauerlicht | Relais umschalten |
+| Ausgelöst | AUS | Blinkend | Reset |
 
-## Entities
+## Entitäten
 
-### Power Limiter
+### Leistungsbegrenzer
 
-| Entity | Type | Description |
-|--------|------|-------------|
-| Power Limit | Number | Trip threshold (0-3000W, default 100W) |
-| Tripped | Binary Sensor | Overload status |
+| Entität | Typ | Beschreibung |
+|---------|-----|--------------|
+| Power Limit | Number | Auslöseschwelle (0-3000W, Standard 100W) |
+| Tripped | Binary Sensor | Überlast-Status |
 
-### Power Monitoring
+### Leistungsmessung
 
-| Entity | Type | Description |
-|--------|------|-------------|
-| Switch | Switch | Main relay control |
-| Power | Sensor | Current wattage |
-| Voltage | Sensor | Line voltage |
-| Current | Sensor | Current draw (A) |
-| Energy | Sensor | Session energy (kWh) |
-| Total Energy | Sensor | Persistent total (kWh) |
-| Total Daily Energy | Sensor | Daily consumption |
-| Apparent Power | Sensor | VA |
-| Reactive Power | Sensor | VAR |
-| Power Factor | Sensor | PF |
+| Entität | Typ | Beschreibung |
+|---------|-----|--------------|
+| Switch | Switch | Hauptrelais-Steuerung |
+| Power | Sensor | Aktuelle Wattzahl |
+| Voltage | Sensor | Netzspannung |
+| Current | Sensor | Stromstärke (A) |
+| Energy | Sensor | Sitzungs-Energie (kWh) |
+| Total Energy | Sensor | Persistente Gesamtenergie (kWh) |
+| Total Daily Energy | Sensor | Tagesverbrauch |
+| Apparent Power | Sensor | Scheinleistung (VA) |
+| Reactive Power | Sensor | Blindleistung (VAR) |
+| Power Factor | Sensor | Leistungsfaktor |
 
-### Device Status
+### Gerätestatus
 
-| Entity | Type | Description |
-|--------|------|-------------|
-| Status | Binary Sensor | Online status |
-| Power Button | Binary Sensor | Physical button (disabled by default) |
-| Uptime Sensor | Sensor | Device uptime |
-| WiFi Signal dB | Sensor | Signal strength (dBm) |
-| WiFi Signal Percent | Sensor | Signal strength (%) |
-| IP Address | Text Sensor | Network IP |
-| Connected SSID | Text Sensor | WiFi network |
-| Mac Address | Text Sensor | Device MAC |
-| Last Restart | Text Sensor | Restart timestamp |
-| Status LED | Light | Blue LED control (disabled by default) |
+| Entität | Typ | Beschreibung |
+|---------|-----|--------------|
+| Status | Binary Sensor | Online-Status |
+| Power Button | Binary Sensor | Physische Taste (standardmäßig deaktiviert) |
+| Uptime Sensor | Sensor | Geräte-Betriebszeit |
+| WiFi Signal dB | Sensor | Signalstärke (dBm) |
+| WiFi Signal Percent | Sensor | Signalstärke (%) |
+| IP Address | Text Sensor | Netzwerk-IP |
+| Connected SSID | Text Sensor | WiFi-Netzwerk |
+| Mac Address | Text Sensor | Geräte-MAC |
+| Last Restart | Text Sensor | Neustart-Zeitstempel |
+| Status LED | Light | Blaue LED-Steuerung (standardmäßig deaktiviert) |
 
-### Configuration
+### Konfiguration
 
-| Entity | Type | Description |
-|--------|------|-------------|
-| Restart | Button | Reboot device |
-| Factory Reset | Button | Reset to defaults |
-| Safe Mode | Button | OTA recovery mode |
+| Entität | Typ | Beschreibung |
+|---------|-----|--------------|
+| Restart | Button | Gerät neustarten |
+| Factory Reset | Button | Auf Werkseinstellungen zurücksetzen |
+| Safe Mode | Button | OTA-Wiederherstellungsmodus |
 
 ## Installation
 
-1. Copy `esphome.yaml` to your ESPHome config directory
+1. `esphome.yaml` in dein ESPHome-Konfigurationsverzeichnis kopieren
 
-2. Edit substitutions:
+2. Substitutions anpassen:
    ```yaml
    substitutions:
-     name: "my-plug"
-     friendly_name: "My Power Limiter"
+     name: "mein-stecker"
+     friendly_name: "Mein Leistungsbegrenzer"
    ```
 
-3. Install:
+3. Installieren:
    ```bash
    esphome run esphome.yaml
    ```
 
-4. Set power limit in Home Assistant (default: 100W)
+4. Leistungsgrenze in Home Assistant setzen (Standard: 100W)
 
-## Usage
+## Verwendung
 
-### Normal Operation
-- LED solid = power flowing
-- Power monitored every 10s (configurable)
-- Exceeds limit = automatic trip
+### Normalbetrieb
+- LED leuchtet dauerhaft = Strom fließt
+- Leistung wird alle 10s gemessen (konfigurierbar)
+- Überschreitung = automatische Auslösung
 
-### When Tripped
-- LED blinks = power cut
-- Short press button or use "Reset Trip" in Home Assistant
+### Bei Auslösung
+- LED blinkt = Strom unterbrochen
+- Kurz Taste drücken zum Zurücksetzen
 
-### Manual Control
-- Short press button = toggle relay (when not tripped)
+### Manuelle Bedienung
+- Kurzer Tastendruck = Relais umschalten (wenn nicht ausgelöst)
 
-### Factory Reset (caution!)
-- Long press button **4+ seconds** = factory reset
-- **Clears everything**: WiFi credentials, power limit, energy totals, all saved state
-- Device reboots into AP mode for fresh setup
-- **Avoid accidental long presses when resetting trip!**
+### Werksreset (Vorsicht!)
+- Taste **4+ Sekunden** lang drücken = Werksreset
+- **Löscht alles**: WiFi-Zugangsdaten, Leistungsgrenze, Energiesummen, alle gespeicherten Zustände
+- Gerät startet im AP-Modus für Neueinrichtung
+- **Versehentliches langes Drücken beim Reset vermeiden!**
 
-### Enable Remote Reset Trip
-By default, the "Reset Trip" button is **disabled** - trip can only be reset via physical button. To enable remote reset from Home Assistant, uncomment the `Reset Trip` button in `esphome.yaml`.
+### Remote-Reset aktivieren
+Standardmäßig ist der "Reset Trip"-Button **deaktiviert** - Reset nur über physische Taste möglich. Um Remote-Reset aus Home Assistant zu aktivieren, den `Reset Trip`-Button in `esphome.yaml` einkommentieren.
 
-## Configuration
+## Konfiguration
 
-All settings are in the `substitutions` section:
+Alle Einstellungen im `substitutions`-Bereich:
 
 ```yaml
 substitutions:
   name: "power-limiter"
   friendly_name: "Power Limiter"
-  sensor_update_interval: 10s    # Power monitoring frequency
-  current_limit: "16"            # Max amps before trip
-  relay_restore_mode: DISABLED          # We handle restore in on_boot
-  power_plug_type: "power-socket-eu"  # Icon type
+  sensor_update_interval: 10s    # Messintervall
+  current_limit: "16"            # Max Ampere vor Auslösung
+  relay_restore_mode: DISABLED   # Wir steuern Wiederherstellung in on_boot
+  power_plug_type: "power-socket-eu"  # Icon-Typ
 ```
 
-### Change Default Power Limit
+### Standard-Leistungsgrenze ändern
 
-Edit `initial_value` in the number component:
+`initial_value` in der Number-Komponente anpassen:
 
 ```yaml
 number:
   - platform: template
     name: "Power Limit"
-    initial_value: 200  # Change from 100
+    initial_value: 200  # Von 100 ändern
 ```
 
-## Flash Persistence
+## Flash-Persistenz
 
-These values survive reboots (saved to ESP32 flash):
+Diese Werte überleben Neustarts (im ESP32-Flash gespeichert):
 
-| Value | Description |
-|-------|-------------|
-| `relay_state` | Was relay ON before reboot? |
-| `is_tripped` | Is device in tripped state? |
-| `power_limit` | Trip threshold in watts |
-| `total_energy` | Accumulated kWh |
+| Wert | Beschreibung |
+|------|--------------|
+| `relay_state` | War Relais vor Neustart AN? |
+| `is_tripped` | Ist Gerät ausgelöst? |
+| `power_limit` | Auslöseschwelle in Watt |
+| `total_energy` | Kumulierte kWh |
 
-## Protection Limits
+## Schutzgrenzen
 
-| Limit | Value | Configurable |
-|-------|-------|--------------|
-| Power | 0-3000W | Yes (Home Assistant) |
-| Current | 16A | YAML only (`current_limit` substitution) |
+| Grenze | Wert | Konfigurierbar |
+|--------|------|----------------|
+| Leistung | 0-3000W | Ja (Home Assistant) |
+| Stromstärke | 16A | Nur YAML (`current_limit` substitution) |
 
-Current limit is a **hardware safety** - protects against overcurrent even if wattage calculation fails. 16A is typical max for EU plugs.
+Stromstärkegrenze ist eine **Hardware-Sicherheit** - schützt vor Überstrom auch wenn Watt-Berechnung fehlschlägt. 16A ist typisches Maximum für EU-Steckdosen.
 
-## Behavior Notes
+## Verhaltenshinweise
 
-1. **Safe boot**: Relay hardware starts OFF, then restores saved state from flash
-2. **Trip priority**: If tripped, relay stays OFF regardless of saved state
-3. **Relay protection**: Home Assistant cannot turn on relay while tripped
-4. **Dual protection**: Trips on either wattage OR current limit exceeded
-5. **Zero limit**: Setting 0W trips on any load detection (power > 3W due to noise filter)
+1. **Sicherer Boot**: Relais-Hardware startet AUS, dann wird gespeicherter Zustand aus Flash wiederhergestellt
+2. **Auslöse-Priorität**: Wenn ausgelöst, bleibt Relais AUS unabhängig vom gespeicherten Zustand
+3. **Relais-Schutz**: Home Assistant kann Relais nicht einschalten wenn ausgelöst
+4. **Doppelter Schutz**: Löst bei Wattzahl ODER Stromstärke-Überschreitung aus
+5. **Null-Grenze**: 0W einstellen löst bei jeder Last aus (Leistung > 3W wegen Rauschfilter)
 
-## License
+## Offline-Betrieb
+
+Funktioniert **vollständig ohne WiFi**. Wenn kein bekanntes Netzwerk gefunden wird, öffnet der Stecker einen eigenen Access Point (`power-limiter`) für Konfiguration. Alle Kernfunktionen (Überlastschutz, Zustandswiederherstellung, LED-Anzeige) sind lokal.
+
+## Lizenz
 
 MIT
