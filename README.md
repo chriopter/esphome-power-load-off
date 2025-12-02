@@ -1,68 +1,36 @@
 # Athom Smart Plug V3 - Leistungsbegrenzer
 
-ESPHome-Leistungsbegrenzer für Athom ESP32-C3 Smart Plug V3. Schaltet bei Überlast automatisch ab.
+ESPHome-Firmware für Athom ESP32-C3 Smart Plug V3 mit automatischer Abschaltung bei Überlast.
 
 ## Funktionsweise
 
 ```
 ┌─────────────────┐
-│     NORMAL      │◄──────────────────────┐
-│  Relais = AN    │                       │
-│  LED = dauerhaft│                       │
-└────────┬────────┘                       │
-         │                                │
-         │ Watt > Limit                   │ Taste drücken
-         │ ODER Ampere > 16A              │
-         │ ODER Taste drücken             │
-         ▼                                │
-┌─────────────────┐                       │
-│   AUSGELÖST     │───────────────────────┘
-│  Relais = AUS   │
-│  LED = blinkend │
+│       AN        │◄──────────────────┐
+│  Strom fließt   │                   │
+│  LED = an       │                   │
+└────────┬────────┘                   │
+         │                            │
+         │ Watt > Limit               │ Taste oder
+         │ ODER Ampere > 16A          │ Home Assistant
+         │ ODER Taste                 │
+         ▼                            │
+┌─────────────────┐                   │
+│       AUS       │───────────────────┘
+│  Kein Strom     │
+│  LED = blinkt   │
 └─────────────────┘
 ```
 
-- **Überlastschutz** - Trennt bei Watt-Überschreitung (0-3000W einstellbar)
-- **Stromstärkeschutz** - Trennt bei >16A (YAML konfigurierbar)
-- **LED-Anzeige** - Dauerlicht = AN, Blinken = ausgelöst
-- **Taste** - Kurz = Auslösen/Reset, Lang 4s = Werksreset
-- **Persistenz** - Zustände überleben Neustart
+- **Leistungsgrenze** - Schaltet ab bei Watt-Überschreitung (0-3000W einstellbar)
+- **Stromstärkegrenze** - Schaltet ab bei >16A (YAML konfigurierbar)
+- **LED-Anzeige** - Dauerhaft = AN, Blinken = AUS
+- **Taste** - Kurz = Ein/Aus, Lang 4s = Werksreset
+- **Persistenz** - Schaltzustand überlebt Neustart
 - **Offline-fähig** - Funktioniert ohne WiFi
 - **Messung** - Alle 50ms
 
 ## Details
-
-<details>
-<summary><strong>Zustände</strong></summary>
-
-- **Normal**: Relais AN, LED dauerhaft, Taste → Auslösen
-- **Ausgelöst**: Relais AUS, LED blinkt, Taste → Reset
-
-</details>
-
-<details>
-<summary><strong>Boot-Reihenfolge</strong></summary>
-
-1. Relais startet AUS (Hardware-Sicherheit)
-2. Flash-Zustand wird gelesen
-3. Wenn ausgelöst → bleibt AUS, LED blinkt
-4. Wenn normal → Relais AN
-
-</details>
-
-<details>
-<summary><strong>Werksreset</strong></summary>
-
-Taste **4+ Sekunden** = löscht alles (WiFi, Einstellungen, Energie). **Vorsicht beim Reset!**
-
-</details>
-
-<details>
-<summary><strong>Remote-Reset</strong></summary>
-
-Standardmäßig deaktiviert. Zum Aktivieren: `Reset Trip`-Button in `esphome.yaml` einkommentieren.
-
-</details>
 
 <details>
 <summary><strong>Konfiguration</strong></summary>
@@ -75,7 +43,7 @@ substitutions:
   current_limit: "16"
 ```
 
-Leistungsgrenze ändern: `initial_value` in Number-Komponente anpassen.
+Leistungsgrenze ändern: `initial_value` in Number-Komponente oder via Home Assistant.
 
 </details>
 
@@ -97,8 +65,7 @@ Athom Smart Plug V3 (ESP32-C3):
 
 | Wert | Beschreibung |
 |------|--------------|
-| `relay_state` | Relais-Zustand |
-| `is_tripped` | Ausgelöst ja/nein |
+| Schaltzustand | AN/AUS |
 | `power_limit` | Schwelle in Watt |
 | `total_energy` | Kumulierte kWh |
 
@@ -111,6 +78,7 @@ Athom Smart Plug V3 (ESP32-C3):
 
 | Entität | Beschreibung |
 |---------|--------------|
+| Power | Schalter Ein/Aus |
 | Power Limit | Auslöseschwelle 0-3000W |
 | Restart | Gerät neustarten |
 | Factory Reset | Werkseinstellungen |
@@ -120,8 +88,8 @@ Athom Smart Plug V3 (ESP32-C3):
 
 | Entität | Beschreibung |
 |---------|--------------|
-| Tripped | Ausgelöst ja/nein |
-| Power | Wattzahl |
+| Power Off | Problem-Anzeige wenn AUS |
+| Power (Sensor) | Wattzahl |
 | Voltage | Spannung (V) |
 | Current | Stromstärke (A) |
 | Energy | Sitzungs-kWh |

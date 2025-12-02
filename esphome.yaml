@@ -44,18 +44,13 @@ esphome:
   on_boot:
     - priority: 600
       then:
-        - lambda: |-
-            // Relay starts OFF (hardware default with DISABLED mode)
-            // Now restore saved state
-            if (id(is_tripped)) {
-              ESP_LOGI("limiter", "Boot: Tripped state - relay stays OFF");
-              id(led_blink).execute();
-            } else if (id(relay_state)) {
-              ESP_LOGI("limiter", "Boot: Restoring relay ON");
-              id(relay).turn_on();
-            } else {
-              ESP_LOGI("limiter", "Boot: Relay stays OFF");
-            }
+        - if:
+            condition:
+              switch.is_on: relay
+            then:
+              - light.turn_on: blue_led
+            else:
+              - script.execute: led_blink
 
 esp32:
   board: esp32-c3-devkitm-1
@@ -110,16 +105,6 @@ globals:
     restore_value: yes
     initial_value: '0.0'
 
-  - id: relay_state
-    type: bool
-    restore_value: yes
-    initial_value: 'false'
-
-  - id: is_tripped
-    type: bool
-    restore_value: true
-    initial_value: 'false'
-
 ################################################
 # BINARY SENSORS
 ################################################
@@ -143,24 +128,17 @@ binary_sensor:
           - ON for at most 1s
           - OFF for at least 0.2s
         then:
-          - if:
-              condition:
-                lambda: 'return id(is_tripped);'
-              then:
-                - script.execute: reset_trip
-              else:
-                - script.execute: trip_relay
+          - switch.toggle: relay
       - timing:
           - ON for at least 4s
         then:
           - button.press: factory_reset_button
 
   - platform: template
-    name: "Tripped"
-    id: tripped_sensor
+    name: "Power Off"
     icon: "mdi:alert-circle"
     device_class: problem
-    lambda: 'return id(is_tripped);'
+    lambda: 'return !id(relay).state;'
 
 ################################################
 # SENSORS
@@ -197,7 +175,7 @@ sensor:
       on_value_range:
         - above: ${current_limit}
           then:
-            - script.execute: trip_relay
+            - switch.turn_off: relay
 
     voltage:
       name: "Voltage"
@@ -215,9 +193,9 @@ sensor:
       on_value:
         then:
           - lambda: |-
-              if (!id(is_tripped) && id(relay).state && x > id(power_limit).state) {
-                ESP_LOGW("limiter", "OVERLOAD: %.1fW > %.0fW - TRIPPING", x, id(power_limit).state);
-                id(trip_relay).execute();
+              if (id(relay).state && x > id(power_limit).state) {
+                ESP_LOGW("limiter", "OVERLOAD: %.1fW > %.0fW - OFF", x, id(power_limit).state);
+                id(relay).turn_off();
               }
 
     energy:
@@ -326,30 +304,18 @@ number:
 
 switch:
   - platform: gpio
-    pin: GPIO5
+    name: "Power"
+    pin:
+      number: GPIO5
+      mode: OUTPUT
     id: relay
-    internal: true
-    restore_mode: ${relay_restore_mode}
+    icon: "mdi:power-socket-eu"
+    restore_mode: RESTORE_DEFAULT_OFF
     on_turn_on:
-      - if:
-          condition:
-            lambda: 'return id(is_tripped);'
-          then:
-            - logger.log:
-                level: WARN
-                tag: limiter
-                format: "Relay blocked - device is tripped"
-            - switch.turn_off: relay
-          else:
-            - lambda: 'id(relay_state) = true;'
-            - light.turn_on: blue_led
+      - script.stop: led_blink
+      - light.turn_on: blue_led
     on_turn_off:
-      - lambda: 'id(relay_state) = false;'
-      - if:
-          condition:
-            lambda: 'return !id(is_tripped);'
-          then:
-            - light.turn_off: blue_led
+      - script.execute: led_blink
 
 ################################################
 # STATUS LED
@@ -418,46 +384,18 @@ time:
                   state: !lambda 'return id(sntp_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
 
 ################################################
-# POWER LIMITER SCRIPTS
+# LED BLINK SCRIPT
 ################################################
 
 script:
-  - id: trip_relay
-    then:
-      - lambda: 'id(is_tripped) = true;'
-      - binary_sensor.template.publish:
-          id: tripped_sensor
-          state: true
-      - switch.turn_off: relay
-      - script.execute: led_blink
-
-  - id: reset_trip
-    then:
-      - lambda: |-
-          if (!id(is_tripped)) return;
-          ESP_LOGI("limiter", "Resetting trip");
-          id(is_tripped) = false;
-      - binary_sensor.template.publish:
-          id: tripped_sensor
-          state: false
-      - script.stop: led_blink
-      - switch.turn_on: relay
-
   - id: led_blink
     mode: restart
     then:
       - while:
           condition:
-            lambda: 'return id(is_tripped);'
+            switch.is_off: relay
           then:
             - light.turn_on: blue_led
             - delay: 500ms
             - light.turn_off: blue_led
             - delay: 500ms
-      - if:
-          condition:
-            switch.is_on: relay
-          then:
-            - light.turn_on: blue_led
-          else:
-            - light.turn_off: blue_led
