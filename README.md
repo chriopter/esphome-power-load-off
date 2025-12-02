@@ -54,7 +54,8 @@ Standardmäßig deaktiviert. Zum Aktivieren: `Reset Trip`-Button in `esphome.yam
 
 ## Technik
 
-### Konfiguration
+<details>
+<summary><strong>Konfiguration</strong></summary>
 
 ```yaml
 substitutions:
@@ -66,7 +67,10 @@ substitutions:
 
 Leistungsgrenze ändern: `initial_value` in Number-Komponente anpassen.
 
-### Hardware
+</details>
+
+<details>
+<summary><strong>Hardware</strong></summary>
 
 Athom Smart Plug V3 (ESP32-C3):
 
@@ -88,7 +92,10 @@ Athom Smart Plug V3 (ESP32-C3):
 | `power_limit` | Schwelle in Watt |
 | `total_energy` | Kumulierte kWh |
 
-### Entitäten
+</details>
+
+<details>
+<summary><strong>Entitäten</strong></summary>
 
 **Schreibbar**
 
@@ -124,6 +131,8 @@ Athom Smart Plug V3 (ESP32-C3):
 | Connected SSID | WiFi-Netzwerk |
 | Last Restart | Neustart-Zeitstempel |
 | ESPHome Version | Firmware-Version |
+
+</details>
 
 ## Referenz
 
