@@ -1,248 +1,459 @@
 ################################################
 # ATHOM SMART PLUG V3 - POWER LIMITER
 ################################################
-# Simple power limiter: trips when wattage exceeds threshold
-# LED blinks when tripped, button toggles between states
+# Self-contained power limiter for Athom ESP32-C3 Smart Plug V3.
+# Based on: https://github.com/athom-tech/esp32-configs/blob/main/athom-smart-plug.yaml
 #
-# For Athom ESP32-C3 Smart Plug V3
+# Trips when wattage exceeds threshold, LED blinks when tripped.
 
 substitutions:
   name: "power-limiter"
   friendly_name: "Power Limiter"
-
-packages:
-  Athom_Technology.Smart_Plug_V3: github://athom-tech/esp32-configs/athom-smart-plug.yaml
+  room: ""
+  device_description: "athom esp32-c3 smart plug with power limiter"
+  project_name: "Athom Technology.Smart Plug V3"
+  project_version: "v2.0.0"
+  relay_restore_mode: DISABLED
+  sensor_update_interval: 10s
+  current_limit: "16"
+  dns_domain: ".local"
+  timezone: ""
+  sntp_update_interval: 6h
+  sntp_server_1: "0.pool.ntp.org"
+  sntp_server_2: "1.pool.ntp.org"
+  sntp_server_3: "2.pool.ntp.org"
+  wifi_fast_connect: "false"
+  log_level: "INFO"
+  ipv6_enable: "false"
+  power_plug_type: "power-socket-eu"
 
 esphome:
-  name: ${name}
+  name: "${name}"
+  friendly_name: "${friendly_name}"
+  comment: "${device_description}"
+  area: "${room}"
   name_add_mac_suffix: false
-  friendly_name: ${friendly_name}
+  min_version: 2024.6.0
+  project:
+    name: "${project_name}"
+    version: "${project_version}"
+  platformio_options:
+    board_build.mcu: esp32c3
+    board_build.variant: esp32c3
+    board_build.flash_mode: dio
   on_boot:
-    priority: 600
-    then:
-      - lambda: |-
-          // Resume blinking if device was tripped before reboot
-          if (id(is_tripped)) {
-            ESP_LOGI("limiter", "Boot: Resuming tripped state");
-            id(relay).turn_off();
-            id(led_blink_script).execute();
-          }
+    - priority: 600
+      then:
+        - lambda: |-
+            // Relay starts OFF (hardware default with DISABLED mode)
+            // Now restore saved state
+            if (id(is_tripped)) {
+              ESP_LOGI("limiter", "Boot: Tripped state - relay stays OFF");
+              id(led_blink).execute();
+            } else if (id(relay_state)) {
+              ESP_LOGI("limiter", "Boot: Restoring relay ON");
+              id(relay).turn_on();
+            } else {
+              ESP_LOGI("limiter", "Boot: Relay stays OFF");
+            }
 
+esp32:
+  board: esp32-c3-devkitm-1
+  flash_size: 4MB
+  variant: ESP32C3
+  framework:
+    type: esp-idf
+    version: recommended
+
+preferences:
+  flash_write_interval: 5min
+
+api:
+
+ota:
+  - platform: esphome
+
+logger:
+  level: ${log_level}
+  baud_rate: 0
+
+mdns:
+  disabled: false
+
+web_server:
+  port: 80
+
+network:
+  enable_ipv6: ${ipv6_enable}
+
+wifi:
+  ap: {}
+  fast_connect: "${wifi_fast_connect}"
+  domain: "${dns_domain}"
+
+captive_portal:
+
+uart:
+  rx_pin: GPIO20
+  baud_rate: 4800
+  data_bits: 8
+  stop_bits: 1
+  parity: EVEN
 
 ################################################
-# PERSISTENT STORAGE
+# GLOBALS
 ################################################
 
 globals:
-  - id: power_limit
-    type: int
-    restore_value: true
-    initial_value: '100'
-  
+  - id: total_energy
+    type: float
+    restore_value: yes
+    initial_value: '0.0'
+
+  - id: relay_state
+    type: bool
+    restore_value: yes
+    initial_value: 'false'
+
   - id: is_tripped
     type: bool
     restore_value: true
     initial_value: 'false'
 
+################################################
+# BINARY SENSORS
+################################################
+
+binary_sensor:
+  - platform: status
+    name: "Status"
+    icon: mdi:check-network-outline
+    entity_category: diagnostic
+
+  - platform: gpio
+    pin:
+      number: GPIO3
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Power Button"
+    id: power_button
+    disabled_by_default: true
+    on_multi_click:
+      - timing:
+          - ON for at most 1s
+          - OFF for at least 0.2s
+        then:
+          - if:
+              condition:
+                lambda: 'return id(is_tripped);'
+              then:
+                - script.execute: reset_trip
+              else:
+                - switch.toggle: relay
+      - timing:
+          - ON for at least 4s
+        then:
+          - button.press: factory_reset_button
+
+  - platform: template
+    name: "Tripped"
+    id: tripped_sensor
+    icon: "mdi:alert-circle"
+    device_class: problem
+    lambda: 'return id(is_tripped);'
 
 ################################################
-# POWER LIMIT CONFIGURATION
+# SENSORS
+################################################
+
+sensor:
+  - platform: uptime
+    name: "Uptime Sensor"
+    id: uptime_sensor
+    entity_category: diagnostic
+
+  - platform: wifi_signal
+    name: "WiFi Signal dB"
+    id: wifi_signal_db
+    update_interval: 60s
+    entity_category: diagnostic
+
+  - platform: copy
+    source_id: wifi_signal_db
+    name: "WiFi Signal Percent"
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+    unit_of_measurement: "Signal %"
+    entity_category: diagnostic
+    device_class: ""
+
+  - platform: cse7766
+    current:
+      name: "Current"
+      icon: mdi:current-ac
+      filters:
+        - throttle_average: ${sensor_update_interval}
+        - lambda: if (x < 0.060) return 0.0; else return x;
+      on_value_range:
+        - above: ${current_limit}
+          then:
+            - script.execute: trip_relay
+
+    voltage:
+      name: "Voltage"
+      icon: mdi:sine-wave
+      filters:
+        - throttle_average: ${sensor_update_interval}
+
+    power:
+      name: "Power"
+      id: power_sensor
+      icon: mdi:power
+      filters:
+        - throttle_average: ${sensor_update_interval}
+        - lambda: if (x < 3.0) return 0.0; else return x;
+      on_value:
+        then:
+          - lambda: |-
+              if (!id(is_tripped) && id(relay).state && x > id(power_limit).state) {
+                ESP_LOGW("limiter", "OVERLOAD: %.1fW > %.0fW - TRIPPING", x, id(power_limit).state);
+                id(trip_relay).execute();
+              }
+
+    energy:
+      name: "Energy"
+      id: energy
+      icon: mdi:lightning-bolt
+      unit_of_measurement: kWh
+      filters:
+        - throttle: ${sensor_update_interval}
+        - multiply: 0.001
+      on_value:
+        then:
+          - lambda: |-
+              static float previous_energy_value = 0.0;
+              float current_energy_value = id(energy).state;
+              id(total_energy) += current_energy_value - previous_energy_value;
+              previous_energy_value = current_energy_value;
+              id(total_energy_sensor).update();
+
+    apparent_power:
+      name: "Apparent Power"
+      icon: mdi:power
+      filters:
+        - throttle_average: ${sensor_update_interval}
+
+    reactive_power:
+      name: "Reactive Power"
+      icon: mdi:flash
+      filters:
+        - throttle_average: ${sensor_update_interval}
+
+    power_factor:
+      name: "Power Factor"
+      icon: mdi:percent-outline
+      filters:
+        - throttle_average: ${sensor_update_interval}
+
+  - platform: template
+    name: "Total Energy"
+    id: total_energy_sensor
+    unit_of_measurement: kWh
+    device_class: energy
+    state_class: total_increasing
+    icon: mdi:lightning-bolt
+    accuracy_decimals: 3
+    lambda: 'return id(total_energy);'
+    update_interval: ${sensor_update_interval}
+
+  - platform: total_daily_energy
+    name: "Total Daily Energy"
+    restore: true
+    power_id: power_sensor
+    unit_of_measurement: kWh
+    icon: mdi:hours-24
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+
+################################################
+# BUTTONS
+################################################
+
+button:
+  - platform: restart
+    name: "Restart"
+    entity_category: config
+
+  - platform: factory_reset
+    name: "Factory Reset"
+    id: factory_reset_button
+    entity_category: config
+
+  - platform: safe_mode
+    name: "Safe Mode"
+    entity_category: config
+
+  - platform: template
+    name: "Reset Trip"
+    icon: "mdi:restart-alert"
+    entity_category: config
+    on_press:
+      - script.execute: reset_trip
+
+################################################
+# POWER LIMIT NUMBER
 ################################################
 
 number:
   - platform: template
-    name: "${friendly_name} Power Limit"
-    id: power_limit_number
+    name: "Power Limit"
+    id: power_limit
     icon: "mdi:flash-alert"
     unit_of_measurement: "W"
-    entity_category: "config"
+    entity_category: config
     optimistic: true
     restore_value: true
     initial_value: 100
     min_value: 0
     max_value: 3000
     step: 10
-    set_action:
-      - globals.set:
-          id: power_limit
-          value: !lambda 'return (int)x;'
-      - logger.log:
-          format: "Power limit set to %d W"
-          args: ['(int)x']
-
 
 ################################################
-# STATUS ENTITIES
+# RELAY SWITCH
 ################################################
-
-binary_sensor:
-  - platform: template
-    name: "${friendly_name} Tripped"
-    id: tripped_sensor
-    icon: "mdi:alert-circle"
-    device_class: problem
-    lambda: |-
-      return id(is_tripped);
-
-button:
-  - platform: template
-    name: "${friendly_name} Toggle Trip"
-    id: toggle_trip_button
-    icon: "mdi:toggle-switch"
-    entity_category: "config"
-    on_press:
-      - script.execute: toggle_trip_state
-
-
-################################################
-# PHYSICAL BUTTON OVERRIDE
-################################################
-# Override the default button behavior from base package
-
-binary_sensor:
-  - platform: gpio
-    pin:
-      number: GPIO3
-      mode: INPUT_PULLUP
-      inverted: true
-    id: physical_button
-    internal: true
-    on_press:
-      - script.execute: toggle_trip_state
-
-
-################################################
-# POWER MONITORING - TRIP ON OVERLOAD
-################################################
-
-sensor:
-  - platform: cse7766
-    current:
-      name: "${friendly_name} Current"
-      id: current_sensor
-    voltage:
-      name: "${friendly_name} Voltage"
-      id: voltage_sensor
-    power:
-      name: "${friendly_name} Power"
-      id: power_sensor
-      on_value:
-        then:
-          - lambda: |-
-              // Only check if not already tripped and relay is on
-              if (!id(is_tripped) && id(relay).state) {
-                if (x > id(power_limit)) {
-                  ESP_LOGW("limiter", "OVERLOAD! %.1f W > %d W limit - TRIPPING", x, id(power_limit));
-                  id(trip_relay).execute();
-                }
-              }
-    energy:
-      name: "${friendly_name} Energy"
-      id: energy_sensor
-    apparent_power:
-      name: "${friendly_name} Apparent Power"
-    power_factor:
-      name: "${friendly_name} Power Factor"
-    update_interval: 1s
-
-uart:
-  rx_pin: GPIO20
-  baud_rate: 4800
-
-
-################################################
-# RELAY PROTECTION
-################################################
-# Prevent relay from turning on while tripped
 
 switch:
   - platform: gpio
-    name: "${friendly_name} Relay"
+    name: "Switch"
     pin: GPIO5
     id: relay
-    icon: "mdi:power-socket-eu"
-    restore_mode: RESTORE_DEFAULT_ON
+    restore_mode: ${relay_restore_mode}
+    icon: mdi:${power_plug_type}
     on_turn_on:
-      - lambda: |-
-          if (id(is_tripped)) {
-            ESP_LOGW("limiter", "Relay blocked - device is tripped");
-            id(relay).turn_off();
-          } else {
-            // Solid LED when power flowing
-            id(led).turn_on();
-          }
+      - if:
+          condition:
+            lambda: 'return id(is_tripped);'
+          then:
+            - logger.log:
+                level: WARN
+                tag: limiter
+                format: "Relay blocked - device is tripped"
+            - switch.turn_off: relay
+          else:
+            - lambda: 'id(relay_state) = true;'
+            - light.turn_on: blue_led
     on_turn_off:
-      - lambda: |-
-          if (!id(is_tripped)) {
-            id(led).turn_off();
-          }
-
+      - lambda: 'id(relay_state) = false;'
+      - if:
+          condition:
+            lambda: 'return !id(is_tripped);'
+          then:
+            - light.turn_off: blue_led
 
 ################################################
-# LED CONTROL
+# STATUS LED
 ################################################
-
-output:
-  - platform: gpio
-    pin: GPIO6
-    inverted: true
-    id: led_output
 
 light:
-  - platform: binary
-    name: "${friendly_name} LED"
-    id: led
-    output: led_output
-    internal: true
-
+  - platform: status_led
+    name: "Status LED"
+    id: blue_led
+    icon: mdi:lightbulb-outline
+    disabled_by_default: true
+    pin:
+      inverted: true
+      number: GPIO6
 
 ################################################
-# SCRIPTS
+# TEXT SENSORS
+################################################
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      icon: mdi:ip-network
+      entity_category: diagnostic
+    ssid:
+      name: "Connected SSID"
+      icon: mdi:wifi-strength-2
+      entity_category: diagnostic
+    mac_address:
+      name: "Mac Address"
+      icon: mdi:network-pos
+      entity_category: diagnostic
+
+  - platform: template
+    name: "Last Restart"
+    id: device_last_restart
+    icon: mdi:clock
+    entity_category: diagnostic
+
+################################################
+# TIME
+################################################
+
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: "${timezone}"
+    update_interval: ${sntp_update_interval}
+    servers:
+      - "${sntp_server_1}"
+      - "${sntp_server_2}"
+      - "${sntp_server_3}"
+    on_time_sync:
+      then:
+        - if:
+            condition:
+              lambda: 'return id(device_last_restart).state == "";'
+            then:
+              - text_sensor.template.publish:
+                  id: device_last_restart
+                  state: !lambda 'return id(sntp_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
+
+################################################
+# POWER LIMITER SCRIPTS
 ################################################
 
 script:
-  # Toggle between tripped and normal state
-  - id: toggle_trip_state
-    then:
-      - lambda: |-
-          if (id(is_tripped)) {
-            // Currently tripped -> go to normal
-            ESP_LOGI("limiter", "Resetting trip - enabling power");
-            id(is_tripped) = false;
-            id(tripped_sensor).publish_state(false);
-            id(led_blink_script).stop();
-            id(relay).turn_on();
-          } else {
-            // Currently normal -> trip
-            ESP_LOGI("limiter", "Manual trip - disabling power");
-            id(trip_relay).execute();
-          }
-
-  # Trip the relay (called by overload or manual)
   - id: trip_relay
     then:
-      - lambda: |-
-          id(is_tripped) = true;
-          id(tripped_sensor).publish_state(true);
+      - lambda: 'id(is_tripped) = true;'
+      - binary_sensor.template.publish:
+          id: tripped_sensor
+          state: true
       - switch.turn_off: relay
-      - script.execute: led_blink_script
+      - script.execute: led_blink
 
-  # LED blink loop
-  - id: led_blink_script
+  - id: reset_trip
+    then:
+      - lambda: |-
+          if (!id(is_tripped)) return;
+          ESP_LOGI("limiter", "Resetting trip");
+          id(is_tripped) = false;
+      - binary_sensor.template.publish:
+          id: tripped_sensor
+          state: false
+      - script.stop: led_blink
+      - switch.turn_on: relay
+
+  - id: led_blink
     mode: restart
     then:
       - while:
           condition:
             lambda: 'return id(is_tripped);'
           then:
-            - light.turn_on: led
+            - light.turn_on: blue_led
             - delay: 500ms
-            - light.turn_off: led
+            - light.turn_off: blue_led
             - delay: 500ms
-      # When loop exits, ensure LED matches relay state
-      - lambda: |-
-          if (id(relay).state) {
-            id(led).turn_on();
-          } else {
-            id(led).turn_off();
-          }
+      - if:
+          condition:
+            switch.is_on: relay
+          then:
+            - light.turn_on: blue_led
+          else:
+            - light.turn_off: blue_led
