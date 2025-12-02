@@ -326,11 +326,10 @@ number:
 
 switch:
   - platform: gpio
-    name: "Switch"
     pin: GPIO5
     id: relay
+    internal: true
     restore_mode: ${relay_restore_mode}
-    icon: mdi:${power_plug_type}
     on_turn_on:
       - if:
           condition:

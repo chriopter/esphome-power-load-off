@@ -1,183 +1,120 @@
 # Athom Smart Plug V3 - Leistungsbegrenzer
 
-Eigenständiger ESPHome-Leistungsbegrenzer für den Athom ESP32-C3 Smart Plug V3. Schaltet automatisch ab, wenn die Wattzahl einen konfigurierbaren Schwellenwert überschreitet.
+ESPHome-Leistungsbegrenzer für Athom ESP32-C3 Smart Plug V3. Schaltet bei Überlast automatisch ab.
 
 ## Funktionsweise
 
 ```
-                    ┌─────────────────────────────────────┐
-                    │           STROMFLUSS                │
-                    └─────────────────────────────────────┘
-                                    │
-                                    ▼
-                    ┌─────────────────────────────────────┐
-                    │      Leistungsmessung (alle 10s)    │
-                    │         Watt / Ampere / Volt        │
-                    └─────────────────────────────────────┘
-                                    │
-                         ┌──────────┴──────────┐
-                         ▼                     ▼
-                ┌─────────────────┐   ┌─────────────────┐
-                │  Watt > Limit?  │   │ Ampere > 16A?   │
-                └─────────────────┘   └─────────────────┘
-                         │                     │
-                         └──────────┬──────────┘
-                                    │ JA
-                                    ▼
-                    ┌─────────────────────────────────────┐
-                    │         🚨 AUSLÖSUNG 🚨             │
-                    │    • Relais AUS (Strom getrennt)    │
-                    │    • LED blinkt                     │
-                    │    • Zustand im Flash gespeichert   │
-                    └─────────────────────────────────────┘
-                                    │
-                                    ▼
-                    ┌─────────────────────────────────────┐
-                    │     Taste kurz drücken = RESET      │
-                    │    • Relais AN (Strom fließt)       │
-                    │    • LED leuchtet dauerhaft         │
-                    └─────────────────────────────────────┘
+  STROMFLUSS → Messung (10s) → Watt > Limit? → 🚨 AUSLÖSUNG
+                             → Ampere > 16A?    • Relais AUS
+                                                • LED blinkt
+                                                    ↓
+                                    Taste drücken = RESET
+                                                • Relais AN
+                                                • LED dauerhaft
 ```
 
 ### Funktionen
 
 | Funktion | Beschreibung |
 |----------|--------------|
-| **Überlastschutz** | Trennt Strom wenn Watt-Grenze überschritten (einstellbar 0-3000W) |
-| **Stromstärkeschutz** | Trennt Strom wenn >16A (Hardware-Sicherheit, YAML konfigurierbar) |
-| **LED-Anzeige** | Dauerlicht = Strom fließt, Blinken = ausgelöst |
-| **Tastenbedienung** | Kurz = Auslösen/Reset, Lang (4s) = Werksreset |
-| **Persistenz** | Alle Zustände überleben Stromausfall/Neustart |
-| **Offline-fähig** | Funktioniert komplett ohne WiFi/Internet |
+| **Überlastschutz** | Trennt bei Watt-Überschreitung (0-3000W einstellbar) |
+| **Stromstärkeschutz** | Trennt bei >16A (YAML konfigurierbar) |
+| **LED-Anzeige** | Dauerlicht = AN, Blinken = ausgelöst |
+| **Taste** | Kurz = Auslösen/Reset, Lang 4s = Werksreset |
+| **Persistenz** | Zustände überleben Neustart |
+| **Offline-fähig** | Funktioniert ohne WiFi |
 
 ### Zustände
 
-| Zustand | Relais | LED | Kurzer Tastendruck |
-|---------|--------|-----|-------------------|
+| Zustand | Relais | LED | Taste |
+|---------|--------|-----|-------|
 | Normal | AN | Dauerlicht | → Auslösen |
 | Ausgelöst | AUS | Blinkend | → Reset |
 
-### Verhalten
+### Boot-Reihenfolge
 
-| Situation | Verhalten |
-|-----------|-----------|
-| **Boot** | Relais startet AUS, dann wird Flash-Zustand wiederhergestellt |
-| **Boot wenn ausgelöst** | Relais bleibt AUS, LED blinkt |
-| **Ausgelöst + HA schaltet ein** | Wird blockiert, Relais bleibt AUS |
-| **Watt ODER Ampere überschritten** | Löst aus (doppelter Schutz) |
-| **Limit auf 0W** | Löst bei jeder Last >3W aus (Rauschfilter) |
-| **Kein WiFi** | Funktioniert lokal, öffnet AP (`power-limiter`) |
+1. Relais startet AUS (Hardware-Sicherheit)
+2. Flash-Zustand wird gelesen
+3. Wenn ausgelöst → bleibt AUS, LED blinkt
+4. Wenn normal → Relais AN
 
-### Werksreset (Vorsicht!)
+### Werksreset
 
-- Taste **4+ Sekunden** lang drücken = Werksreset
-- **Löscht alles**: WiFi-Zugangsdaten, Leistungsgrenze, Energiesummen, alle gespeicherten Zustände
-- Gerät startet im AP-Modus für Neueinrichtung
-- **Versehentliches langes Drücken beim Reset vermeiden!**
+Taste **4+ Sekunden** = löscht alles (WiFi, Einstellungen, Energie). **Vorsicht beim Reset!**
 
-### Remote-Reset aktivieren
+### Remote-Reset
 
-Standardmäßig ist der "Reset Trip"-Button **deaktiviert** - Reset nur über physische Taste möglich. Um Remote-Reset aus Home Assistant zu aktivieren, den `Reset Trip`-Button in `esphome.yaml` einkommentieren.
+Standardmäßig deaktiviert. Zum Aktivieren: `Reset Trip`-Button in `esphome.yaml` einkommentieren.
 
 ## Konfiguration
-
-Alle Einstellungen im `substitutions`-Bereich:
 
 ```yaml
 substitutions:
   name: "power-limiter"
   friendly_name: "Power Limiter"
-  sensor_update_interval: 10s    # Messintervall
-  current_limit: "16"            # Max Ampere vor Auslösung
-  power_plug_type: "power-socket-eu"  # Icon-Typ
+  sensor_update_interval: 10s
+  current_limit: "16"
 ```
 
-### Standard-Leistungsgrenze ändern
-
-`initial_value` in der Number-Komponente anpassen:
-
-```yaml
-number:
-  - platform: template
-    name: "Power Limit"
-    initial_value: 200  # Von 100 ändern
-```
+Leistungsgrenze ändern: `initial_value` in Number-Komponente anpassen.
 
 ## Technische Details
 
-### Hardware
-
-Athom Smart Plug V3 (ESP32-C3):
+### Hardware (Athom Smart Plug V3)
 
 | GPIO | Funktion |
 |------|----------|
-| 3 | Taster (INPUT_PULLUP, invertiert) |
+| 3 | Taster |
 | 5 | Relais |
-| 6 | LED (invertiert) |
-| 20 | CSE7766 RX (Leistungsmessung) |
+| 6 | LED |
+| 20 | CSE7766 (Leistungsmessung) |
 
 ### Schutzgrenzen
 
 | Grenze | Wert | Konfigurierbar |
 |--------|------|----------------|
-| Leistung | 0-3000W | Ja (Home Assistant) |
-| Stromstärke | 16A | Nur YAML (`current_limit` substitution) |
-
-Stromstärkegrenze ist eine **Hardware-Sicherheit** - schützt vor Überstrom auch wenn Watt-Berechnung fehlschlägt. 16A ist typisches Maximum für EU-Steckdosen.
+| Leistung | 0-3000W | Home Assistant |
+| Stromstärke | 16A | Nur YAML |
 
 ### Flash-Persistenz
 
-Diese Werte überleben Neustarts (im ESP32-Flash gespeichert):
-
 | Wert | Beschreibung |
 |------|--------------|
-| `relay_state` | War Relais vor Neustart AN? |
-| `is_tripped` | Ist Gerät ausgelöst? |
-| `power_limit` | Auslöseschwelle in Watt |
+| `relay_state` | Relais-Zustand vor Neustart |
+| `is_tripped` | Ausgelöst ja/nein |
+| `power_limit` | Schwelle in Watt |
 | `total_energy` | Kumulierte kWh |
 
 ### Entitäten
 
-**Steuerung (Eingabe möglich)**
+**Steuerung**
 
-| Entität | Typ | Beschreibung |
-|---------|-----|--------------|
-| **Power Limit** | Number | ✏️ Auslöseschwelle einstellen (0-3000W) |
-| **Switch** | Switch | ✏️ Relais ein/ausschalten |
-| **Restart** | Button | ✏️ Gerät neustarten |
-| **Factory Reset** | Button | ✏️ Werkseinstellungen |
-| **Safe Mode** | Button | ✏️ OTA-Wiederherstellungsmodus |
-| **Status LED** | Light | ✏️ Blaue LED steuern (Standard: deaktiviert) |
+| Entität | Beschreibung |
+|---------|--------------|
+| **Power Limit** | ✏️ Auslöseschwelle (0-3000W) |
+| **Restart** | ✏️ Gerät neustarten |
+| **Factory Reset** | ✏️ Werkseinstellungen |
+| **Safe Mode** | ✏️ OTA-Wiederherstellung |
 
-**Status (nur lesen)**
+**Status**
 
-| Entität | Typ | Beschreibung |
-|---------|-----|--------------|
-| **Tripped** | Binary Sensor | 🔴 Ausgelöst ja/nein |
-| **Power** | Sensor | 📊 Aktuelle Wattzahl |
-| **Voltage** | Sensor | 📊 Netzspannung (V) |
-| **Current** | Sensor | 📊 Stromstärke (A) |
-| **Energy** | Sensor | 📊 Sitzungs-Energie (kWh) |
-| **Total Energy** | Sensor | 📊 Gesamtenergie persistent (kWh) |
-| **Total Daily Energy** | Sensor | 📊 Tagesverbrauch (kWh) |
-| **Apparent Power** | Sensor | 📊 Scheinleistung (VA) |
-| **Reactive Power** | Sensor | 📊 Blindleistung (VAR) |
-| **Power Factor** | Sensor | 📊 Leistungsfaktor |
-| **Status** | Binary Sensor | 📊 Online-Status |
-| **Uptime Sensor** | Sensor | 📊 Betriebszeit |
-| **WiFi Signal dB** | Sensor | 📊 Signalstärke (dBm) |
-| **WiFi Signal Percent** | Sensor | 📊 Signalstärke (%) |
-| **IP Address** | Text Sensor | 📊 Netzwerk-IP |
-| **Connected SSID** | Text Sensor | 📊 WiFi-Netzwerk |
-| **Mac Address** | Text Sensor | 📊 Geräte-MAC |
-| **Last Restart** | Text Sensor | 📊 Neustart-Zeitstempel |
-| **Power Button** | Binary Sensor | 📊 Physische Taste (Standard: deaktiviert) |
+| Entität | Beschreibung |
+|---------|--------------|
+| **Tripped** | 🔴 Ausgelöst ja/nein |
+| **Power** | 📊 Wattzahl |
+| **Voltage** | 📊 Spannung (V) |
+| **Current** | 📊 Stromstärke (A) |
+| **Energy** | 📊 Sitzungs-kWh |
+| **Total Energy** | 📊 Gesamt-kWh |
+| **Total Daily Energy** | 📊 Tages-kWh |
+| **Power Factor** | 📊 Leistungsfaktor |
+| **Status** | 📊 Online-Status |
+| **WiFi Signal** | 📊 Signalstärke |
 
 ## Referenz
 
-Basiert auf der offiziellen Athom-Konfiguration (eingebettet, keine externen Abhängigkeiten):
-- **Repository**: https://github.com/athom-tech/esp32-configs
-- **Original-Config**: [athom-smart-plug.yaml](https://github.com/athom-tech/esp32-configs/blob/main/athom-smart-plug.yaml)
+Basiert auf [athom-smart-plug.yaml](https://github.com/athom-tech/esp32-configs/blob/main/athom-smart-plug.yaml) (eingebettet, keine Abhängigkeiten).
 
 ## Lizenz
 
