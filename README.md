@@ -27,6 +27,7 @@ ESPHome-Firmware für Athom ESP32-C3 Smart Plug V3 mit automatischer Abschaltung
 - **Persistenz** - Schaltzustand überlebt Neustart
 - **Offline-fähig** - Funktioniert ohne WiFi
 - **Messung** - Alle 50ms
+- **Erweiterbar** - Zeitschaltuhr oder Remote-Einschaltung kann eingebaut werden, wenn mehr als Sicherheitsabschaltung gewünscht
 
 ## Details
 
