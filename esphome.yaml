@@ -14,7 +14,6 @@ substitutions:
   project_name: "Athom Technology.Smart Plug V3"
   project_version: "v2.0.0"
   sensor_update_interval: 50ms
-  current_limit: "16"
   dns_domain: ".local"
   timezone: ""
   sntp_update_interval: 6h
@@ -167,14 +166,18 @@ sensor:
   - platform: cse7766
     current:
       name: "Current"
+      id: current_sensor
       icon: mdi:current-ac
       filters:
         - throttle_average: ${sensor_update_interval}
         - lambda: if (x < 0.060) return 0.0; else return x;
-      on_value_range:
-        - above: ${current_limit}
-          then:
-            - switch.turn_off: relay
+      on_value:
+        then:
+          - lambda: |-
+              if (id(relay).state && x > id(current_limit).state) {
+                ESP_LOGW("limiter", "OVERLOAD: %.2fA > %.1fA - OFF", x, id(current_limit).state);
+                id(relay).turn_off();
+              }
 
     voltage:
       name: "Voltage"
@@ -189,13 +192,6 @@ sensor:
       filters:
         - throttle_average: ${sensor_update_interval}
         - lambda: if (x < 3.0) return 0.0; else return x;
-      on_value:
-        then:
-          - lambda: |-
-              if (id(relay).state && x > id(power_limit).state) {
-                ESP_LOGW("limiter", "OVERLOAD: %.1fW > %.0fW - OFF", x, id(power_limit).state);
-                id(relay).turn_off();
-              }
 
     energy:
       name: "Energy"
@@ -272,22 +268,22 @@ button:
     entity_category: config
 
 ################################################
-# POWER LIMIT NUMBER
+# CURRENT LIMIT NUMBER
 ################################################
 
 number:
   - platform: template
-    name: "Power Limit"
-    id: power_limit
-    icon: "mdi:flash-alert"
-    unit_of_measurement: "W"
+    name: "Current Limit"
+    id: current_limit
+    icon: "mdi:current-ac"
+    unit_of_measurement: "A"
     entity_category: config
     optimistic: true
     restore_value: true
-    initial_value: 100
+    initial_value: 10
     min_value: 0
-    max_value: 3000
-    step: 10
+    max_value: 16
+    step: 0.5
 
 ################################################
 # RELAY SWITCH

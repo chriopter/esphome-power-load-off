@@ -11,9 +11,8 @@ ESPHome-Firmware für Athom ESP32-C3 Smart Plug V3 mit automatischer Abschaltung
 │  LED = an       │                   │
 └────────┬────────┘                   │
          │                            │
-         │ Watt > Limit               │ Taste oder
-         │ ODER Ampere > 16A          │ Home Assistant
-         │ ODER Taste                 │
+         │ Ampere > Limit             │ Taste oder
+         │ ODER Taste                 │ Home Assistant
          ▼                            │
 ┌─────────────────┐                   │
 │       AUS       │───────────────────┘
@@ -22,8 +21,7 @@ ESPHome-Firmware für Athom ESP32-C3 Smart Plug V3 mit automatischer Abschaltung
 └─────────────────┘
 ```
 
-- **Leistungsgrenze** - Schaltet ab bei Watt-Überschreitung (0-3000W einstellbar)
-- **Stromstärkegrenze** - Schaltet ab bei >16A (YAML konfigurierbar)
+- **Stromstärkegrenze** - Schaltet ab bei Ampere-Überschreitung (0-16A einstellbar)
 - **LED-Anzeige** - Dauerhaft = AN, Blinken = AUS
 - **Taste** - Kurz = Ein/Aus, Lang 4s = Werksreset
 - **Persistenz** - Schaltzustand überlebt Neustart
@@ -40,10 +38,9 @@ substitutions:
   name: "power-limiter"
   friendly_name: "Power Limiter"
   sensor_update_interval: 50ms
-  current_limit: "16"
 ```
 
-Leistungsgrenze ändern: `initial_value` in Number-Komponente oder via Home Assistant.
+Stromstärkegrenze ändern: `initial_value` in Number-Komponente oder via Home Assistant (0-16A, Standard: 10A).
 
 </details>
 
@@ -59,14 +56,12 @@ Athom Smart Plug V3 (ESP32-C3):
 | 6 | LED |
 | 20 | CSE7766 |
 
-**Schutzgrenzen**: Leistung 0-3000W (Home Assistant), Stromstärke 16A (nur YAML).
-
 **Flash-Persistenz** (überleben Neustart):
 
 | Wert | Beschreibung |
 |------|--------------|
 | Schaltzustand | AN/AUS |
-| `power_limit` | Schwelle in Watt |
+| `current_limit` | Schwelle in Ampere |
 | `total_energy` | Kumulierte kWh |
 
 </details>
@@ -79,7 +74,7 @@ Athom Smart Plug V3 (ESP32-C3):
 | Entität | Beschreibung |
 |---------|--------------|
 | Power | Schalter Ein/Aus |
-| Power Limit | Auslöseschwelle 0-3000W |
+| Current Limit | Auslöseschwelle 0-16A |
 | Restart | Gerät neustarten |
 | Factory Reset | Werkseinstellungen |
 | Safe Mode | OTA-Wiederherstellung |
