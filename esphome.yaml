@@ -1,13 +1,29 @@
 ################################################
 #
-# ATHOM SMART PLUG V3 - ORIGINAL
-# Source: https://github.com/athom-tech/esp32-configs/blob/main/athom-smart-plug.yaml
+# DEVICE CONFIGURATION
 #
 ################################################
 
 substitutions:
   name: "power-limiter"
   friendly_name: "Power Limiter"
+
+api:
+  encryption:
+    key: !secret api_key
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+################################################
+#
+# ATHOM SMART PLUG V3 - ORIGINAL
+# Source: https://github.com/athom-tech/esp32-configs/blob/main/athom-smart-plug.yaml
+#
+################################################
+
+substitutions:
   room: ""
   device_description: "athom esp32-c3 smart plug with current limiter"
   project_name: "Athom Technology.Smart Plug V3"

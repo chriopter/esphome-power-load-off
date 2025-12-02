@@ -1,6 +1,6 @@
-# Athom Smart Plug V3 - Leistungsbegrenzer
+# Athom Smart Plug V3 - Strombegrenzer
 
-ESPHome-Firmware für Athom ESP32-C3 Smart Plug V3 mit automatischer Abschaltung bei Überlast.
+ESPHome-Firmware für Athom ESP32-C3 Smart Plug V3 mit automatischer Abschaltung bei Stromüberschreitung.
 
 ## Funktionsweise
 
