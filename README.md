@@ -5,14 +5,24 @@ ESPHome-Leistungsbegrenzer für Athom ESP32-C3 Smart Plug V3. Schaltet bei Über
 ## Funktionsweise
 
 ```
-  STROMFLUSS → Messung (10s) → Watt > Limit? → 🚨 AUSLÖSUNG
-                             → Ampere > 16A?    • Relais AUS
-                                                • LED blinkt
-                                                    ↓
-                                    Taste drücken = RESET
-                                                • Relais AN
-                                                • LED dauerhaft
+┌─────────────────┐
+│     NORMAL      │◄──────────────────────┐
+│  Relais = AN    │                       │
+│  LED = dauerhaft│                       │
+└────────┬────────┘                       │
+         │                                │
+         │ Watt > Limit                   │ Taste drücken
+         │ ODER Ampere > 16A              │
+         │ ODER Taste drücken             │
+         ▼                                │
+┌─────────────────┐                       │
+│   AUSGELÖST     │───────────────────────┘
+│  Relais = AUS   │
+│  LED = blinkend │
+└─────────────────┘
 ```
+
+Messung alle 50ms.
 
 ### Funktionen
 
@@ -24,13 +34,6 @@ ESPHome-Leistungsbegrenzer für Athom ESP32-C3 Smart Plug V3. Schaltet bei Über
 | **Taste** | Kurz = Auslösen/Reset, Lang 4s = Werksreset |
 | **Persistenz** | Zustände überleben Neustart |
 | **Offline-fähig** | Funktioniert ohne WiFi |
-
-### Zustände
-
-| Zustand | Relais | LED | Taste |
-|---------|--------|-----|-------|
-| Normal | AN | Dauerlicht | → Auslösen |
-| Ausgelöst | AUS | Blinkend | → Reset |
 
 ### Boot-Reihenfolge
 
@@ -53,7 +56,7 @@ Standardmäßig deaktiviert. Zum Aktivieren: `Reset Trip`-Button in `esphome.yam
 substitutions:
   name: "power-limiter"
   friendly_name: "Power Limiter"
-  sensor_update_interval: 10s
+  sensor_update_interval: 50ms
   current_limit: "16"
 ```
 

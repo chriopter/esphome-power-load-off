@@ -14,7 +14,7 @@ substitutions:
   project_name: "Athom Technology.Smart Plug V3"
   project_version: "v2.0.0"
   relay_restore_mode: DISABLED
-  sensor_update_interval: 10s
+  sensor_update_interval: 50ms
   current_limit: "16"
   dns_domain: ".local"
   timezone: ""
