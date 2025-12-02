@@ -91,7 +91,12 @@ Athom Smart Plug V3 (ESP32-C3): GPIO3 Taster, GPIO5 Relais, GPIO6 LED, GPIO20 CS
 | **Total Daily Energy** | Tages-kWh |
 | **Power Factor** | Leistungsfaktor |
 | **Status** | Online-Status |
+| **Uptime** | Betriebszeit |
 | **WiFi Signal** | Signalstärke |
+| **IP Address** | Netzwerk-IP |
+| **MAC Address** | Geräte-MAC |
+| **Connected SSID** | WiFi-Netzwerk |
+| **Last Restart** | Neustart-Zeitstempel |
 | **ESPHome Version** | Firmware-Version |
 
 ## Referenz
