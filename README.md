@@ -96,6 +96,8 @@ Athom Smart Plug V3 (ESP32-C3):
 | Total Energy | Gesamt-kWh |
 | Total Daily Energy | Tages-kWh |
 | Power Factor | Leistungsfaktor |
+| Apparent Power | Scheinleistung (VA) |
+| Reactive Power | Blindleistung (var) |
 
 **Geräteinfo**
 
