@@ -11,8 +11,8 @@ ESPHome-Firmware für Athom ESP32-C3 Smart Plug V3 mit automatischer Abschaltung
 │  LED = an       │                   │
 └────────┬────────┘                   │
          │                            │
-         │ Ampere > Limit             │ Taste oder
-         │ ODER Taste                 │ Home Assistant
+         │ Ampere > Limit             │ Taste
+         │ ODER Taste                 │
          ▼                            │
 ┌─────────────────┐                   │
 │       AUS       │───────────────────┘
@@ -73,11 +73,12 @@ Athom Smart Plug V3 (ESP32-C3):
 
 | Entität | Beschreibung |
 |---------|--------------|
-| Power | Schalter Ein/Aus |
 | Current Limit | Auslöseschwelle 0-16A |
 | Restart | Gerät neustarten |
 | Factory Reset | Werkseinstellungen |
 | Safe Mode | OTA-Wiederherstellung |
+
+> **Sicherheit:** Der Schalter ist standardmäßig nur per Taste bedienbar (nicht via Home Assistant). Für Remote-Steuerung: `name: "Power"` in `esphome.yaml` einkommentieren und `internal: true` entfernen.
 
 **Messwerte**
 

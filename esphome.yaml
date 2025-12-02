@@ -245,13 +245,14 @@ button:
 
 switch:
   - platform: gpio
-    name: "Power"
+    # name: "Power"  # Uncomment to enable remote control via Home Assistant
     pin:
       number: GPIO5
       mode: OUTPUT
     id: relay
     icon: "mdi:${power_plug_type}"
     restore_mode: RESTORE_DEFAULT_OFF
+    internal: true
 
 light:
   - platform: status_led
