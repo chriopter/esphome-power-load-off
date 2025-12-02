@@ -68,36 +68,62 @@ Leistungsgrenze ändern: `initial_value` in Number-Komponente anpassen.
 
 ### Hardware
 
-Athom Smart Plug V3 (ESP32-C3): GPIO3 Taster, GPIO5 Relais, GPIO6 LED, GPIO20 CSE7766.
+Athom Smart Plug V3 (ESP32-C3):
+
+| GPIO | Funktion |
+|------|----------|
+| 3 | Taster |
+| 5 | Relais |
+| 6 | LED |
+| 20 | CSE7766 |
 
 **Schutzgrenzen**: Leistung 0-3000W (Home Assistant), Stromstärke 16A (nur YAML).
 
-**Flash-Persistenz**: `relay_state`, `is_tripped`, `power_limit`, `total_energy` überleben Neustart.
+**Flash-Persistenz** (überleben Neustart):
+
+| Wert | Beschreibung |
+|------|--------------|
+| `relay_state` | Relais-Zustand |
+| `is_tripped` | Ausgelöst ja/nein |
+| `power_limit` | Schwelle in Watt |
+| `total_energy` | Kumulierte kWh |
 
 ### Entitäten
 
+**Schreibbar**
+
 | Entität | Beschreibung |
 |---------|--------------|
-| **Power Limit** | Auslöseschwelle 0-3000W (Schreibbar) |
-| **Restart** | Gerät neustarten (Schreibbar) |
-| **Factory Reset** | Werkseinstellungen (Schreibbar) |
-| **Safe Mode** | OTA-Wiederherstellung (Schreibbar) |
-| **Tripped** | Ausgelöst ja/nein |
-| **Power** | Wattzahl |
-| **Voltage** | Spannung (V) |
-| **Current** | Stromstärke (A) |
-| **Energy** | Sitzungs-kWh |
-| **Total Energy** | Gesamt-kWh |
-| **Total Daily Energy** | Tages-kWh |
-| **Power Factor** | Leistungsfaktor |
-| **Status** | Online-Status |
-| **Uptime** | Betriebszeit |
-| **WiFi Signal** | Signalstärke |
-| **IP Address** | Netzwerk-IP |
-| **MAC Address** | Geräte-MAC |
-| **Connected SSID** | WiFi-Netzwerk |
-| **Last Restart** | Neustart-Zeitstempel |
-| **ESPHome Version** | Firmware-Version |
+| Power Limit | Auslöseschwelle 0-3000W |
+| Restart | Gerät neustarten |
+| Factory Reset | Werkseinstellungen |
+| Safe Mode | OTA-Wiederherstellung |
+
+**Messwerte**
+
+| Entität | Beschreibung |
+|---------|--------------|
+| Tripped | Ausgelöst ja/nein |
+| Power | Wattzahl |
+| Voltage | Spannung (V) |
+| Current | Stromstärke (A) |
+| Energy | Sitzungs-kWh |
+| Total Energy | Gesamt-kWh |
+| Total Daily Energy | Tages-kWh |
+| Power Factor | Leistungsfaktor |
+
+**Geräteinfo**
+
+| Entität | Beschreibung |
+|---------|--------------|
+| Status | Online-Status |
+| Uptime | Betriebszeit |
+| WiFi Signal | Signalstärke |
+| IP Address | Netzwerk-IP |
+| MAC Address | Geräte-MAC |
+| Connected SSID | WiFi-Netzwerk |
+| Last Restart | Neustart-Zeitstempel |
+| ESPHome Version | Firmware-Version |
 
 ## Referenz
 
