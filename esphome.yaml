@@ -149,7 +149,7 @@ binary_sensor:
               then:
                 - script.execute: reset_trip
               else:
-                - switch.toggle: relay
+                - script.execute: trip_relay
       - timing:
           - ON for at least 4s
         then:
