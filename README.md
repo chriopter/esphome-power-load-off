@@ -1,131 +1,155 @@
 # Athom Smart Plug V3 - Power Limiter
 
-Simple ESPHome power limiter for the Athom ESP32-C3 Smart Plug V3. Automatically cuts power when wattage exceeds a configurable threshold.
+Self-contained ESPHome power limiter for the Athom ESP32-C3 Smart Plug V3. Automatically cuts power when wattage exceeds a configurable threshold.
+
+## Reference
+
+Based on the official Athom configuration (vendored, no external dependencies):
+- **Repository**: https://github.com/athom-tech/esp32-configs
+- **Original config**: [athom-smart-plug.yaml](https://github.com/athom-tech/esp32-configs/blob/main/athom-smart-plug.yaml)
 
 ## Features
 
-- **Automatic overload protection** - Cuts power when watts exceed limit
+- **Automatic overload protection** - Trips when watts exceed limit
+- **Current limit protection** - Trips when current exceeds 16A (configurable)
 - **Visual feedback** - LED blinks when tripped, solid when power flowing
-- **Physical button control** - Toggle between tripped/normal states
-- **Persistent settings** - Power limit and trip state survive reboots
-- **Home Assistant integration** - Full control and monitoring
+- **Physical button control** - Short press: toggle relay/reset trip, Long press (4s): factory reset
+- **Persistent state** - Trip state, power limit, and energy totals survive reboots
+- **Web interface** - Built-in config portal on port 80
 
 ## Hardware
 
-Tested on Athom Smart Plug V3 (ESP32-C3):
-- GPIO3: Button
-- GPIO5: Relay
-- GPIO6: LED
-- GPIO20: CSE7766 (power monitoring)
+Athom Smart Plug V3 (ESP32-C3):
+
+| GPIO | Function |
+|------|----------|
+| 3 | Button (INPUT_PULLUP, inverted) |
+| 5 | Relay |
+| 6 | LED (inverted) |
+| 20 | CSE7766 RX (power monitoring) |
 
 ## States
 
-| State | Relay | LED | Button Action |
-|-------|-------|-----|---------------|
-| **Normal** | ON | Solid | → Trip |
-| **Tripped** | OFF | Blinking | → Normal |
+| State | Relay | LED | Short Button Press |
+|-------|-------|-----|-------------------|
+| Normal | ON | Solid | Toggle relay |
+| Tripped | OFF | Blinking | Reset trip |
 
 ## Entities
 
+### Power Limiter
+
 | Entity | Type | Description |
 |--------|------|-------------|
-| `Relay` | Switch | Main power control |
-| `Power` | Sensor | Current wattage |
-| `Voltage` | Sensor | Line voltage |
-| `Current` | Sensor | Current draw (A) |
-| `Energy` | Sensor | Total energy (kWh) |
-| `Power Limit` | Number | Trip threshold (0-3000W) |
-| `Tripped` | Binary Sensor | Overload status |
-| `Toggle Trip` | Button | Manual trip/reset |
+| Power Limit | Number | Trip threshold (0-3000W, default 100W) |
+| Tripped | Binary Sensor | Overload status |
+| Reset Trip | Button | Clear trip state |
+
+### Power Monitoring
+
+| Entity | Type | Description |
+|--------|------|-------------|
+| Switch | Switch | Main relay control |
+| Power | Sensor | Current wattage |
+| Voltage | Sensor | Line voltage |
+| Current | Sensor | Current draw (A) |
+| Energy | Sensor | Session energy (kWh) |
+| Total Energy | Sensor | Persistent total (kWh) |
+| Total Daily Energy | Sensor | Daily consumption |
+| Apparent Power | Sensor | VA |
+| Reactive Power | Sensor | VAR |
+| Power Factor | Sensor | PF |
+
+### Device Status
+
+| Entity | Type | Description |
+|--------|------|-------------|
+| Status | Binary Sensor | Online status |
+| Power Button | Binary Sensor | Physical button (disabled by default) |
+| Uptime Sensor | Sensor | Device uptime |
+| WiFi Signal dB | Sensor | Signal strength (dBm) |
+| WiFi Signal Percent | Sensor | Signal strength (%) |
+| IP Address | Text Sensor | Network IP |
+| Connected SSID | Text Sensor | WiFi network |
+| Mac Address | Text Sensor | Device MAC |
+| Last Restart | Text Sensor | Restart timestamp |
+| Status LED | Light | Blue LED control (disabled by default) |
+
+### Configuration
+
+| Entity | Type | Description |
+|--------|------|-------------|
+| Restart | Button | Reboot device |
+| Factory Reset | Button | Reset to defaults |
+| Safe Mode | Button | OTA recovery mode |
 
 ## Installation
 
-1. Copy `athom-power-limiter.yaml` to your ESPHome config directory
+1. Copy `esphome.yaml` to your ESPHome config directory
 
-2. Edit substitutions if needed:
+2. Edit substitutions:
    ```yaml
    substitutions:
      name: "my-plug"
      friendly_name: "My Power Limiter"
    ```
 
-3. Install to device:
+3. Install:
    ```bash
-   esphome run athom-power-limiter.yaml
+   esphome run esphome.yaml
    ```
 
-4. In Home Assistant, set your desired power limit (default: 100W)
+4. Set power limit in Home Assistant (default: 100W)
 
 ## Usage
 
-### Normal operation
-- LED glows solid = power is flowing
-- Device monitors wattage continuously
-- If power exceeds limit → automatic trip
+### Normal Operation
+- LED solid = power flowing
+- Power monitored every 10s (configurable)
+- Exceeds limit = automatic trip
 
-### When tripped
-- LED blinks = power is cut
-- Press physical button to reset
-- Or use "Toggle Trip" button in Home Assistant
+### When Tripped
+- LED blinks = power cut
+- Short press button or use "Reset Trip" in Home Assistant
 
-### Manual trip
-- Press physical button while power is flowing
-- Useful for quick shutoff
+### Manual Control
+- Short press button = toggle relay (when not tripped)
+- Long press 4s = factory reset
 
 ## Configuration
 
-### Change default power limit
+All settings are in the `substitutions` section:
+
+```yaml
+substitutions:
+  name: "power-limiter"
+  friendly_name: "Power Limiter"
+  sensor_update_interval: 10s    # Power monitoring frequency
+  current_limit: "16"            # Max amps before trip
+  relay_restore_mode: DISABLED          # We handle restore in on_boot
+  power_plug_type: "power-socket-eu"  # Icon type
+```
+
+### Change Default Power Limit
 
 Edit `initial_value` in the number component:
+
 ```yaml
 number:
   - platform: template
-    name: "${friendly_name} Power Limit"
-    initial_value: 100  # Change this
-```
-
-### Adjust monitoring speed
-
-For faster response (but more network traffic):
-```yaml
-sensor:
-  - platform: cse7766
-    # ...
-    update_interval: 500ms  # Default: 1s
-```
-
-### Change blink speed
-
-Edit delays in `led_blink_script`:
-```yaml
-- light.turn_on: led
-- delay: 250ms  # Faster blink
-- light.turn_off: led
-- delay: 250ms
+    name: "Power Limit"
+    initial_value: 200  # Change from 100
 ```
 
 ## Behavior Notes
 
-1. **On boot**: If device was tripped before power loss, it stays tripped after reboot
-
-2. **Home Assistant relay control**: Turning on the relay while tripped is blocked - you must reset the trip first
-
-3. **Power limit of 0**: Setting limit to 0W will trip immediately when any load is detected
-
-## Troubleshooting
-
-**LED not blinking when tripped**
-- Check GPIO6 pin configuration
-- Verify `inverted: true` matches your hardware
-
-**Power readings inaccurate**
-- CSE7766 may need calibration for your region's voltage
-- Add calibration values to the sensor config
-
-**Trip not triggering**
-- Ensure `update_interval` is fast enough to catch transients
-- Check that power_limit global matches the number entity
+1. **Safe boot**: Relay hardware starts OFF, then restores saved state from flash
+2. **State persistence**: Relay state, trip state, and power limit survive reboots
+3. **Trip priority**: If tripped, relay stays OFF regardless of saved state
+4. **Relay protection**: Home Assistant cannot turn on relay while tripped
+5. **Dual protection**: Trips on either wattage OR current limit exceeded
+6. **Zero limit**: Setting 0W trips on any load detection (power > 3W due to noise filter)
 
 ## License
 
-MIT - Do whatever you want with it.
+MIT
