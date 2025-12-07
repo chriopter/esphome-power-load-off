@@ -304,6 +304,11 @@ Athom Smart Plug V3 (ESP32-C3):
 
 </details>
 
+## TODO
+
+- [ ] Web UI an/aus Entscheidung (aktuell an via Athom-Package, Port 80, kein Passwort)
+- [ ] Athom-Package später einbetten (Copy-Paste statt GitHub-Abhängigkeit)
+
 ## Referenz & Lizenz
 
-Basiert auf [athom-smart-plug.yaml](https://github.com/athom-tech/esp32-configs/blob/main/athom-smart-plug.yaml) (eingebettet, keine Abhängigkeiten). MIT Lizenz.
+Basiert auf [athom-smart-plug.yaml](https://github.com/athom-tech/esp32-configs/blob/main/athom-smart-plug.yaml). MIT Lizenz.
