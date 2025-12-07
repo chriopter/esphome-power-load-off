@@ -59,16 +59,49 @@ binary_sensor:
     device_class: problem
     lambda: 'return !id(relay).state;'
 
+### DEBUG START - Remove after calibration ###############
+globals:
+  - id: peak_current
+    type: float
+    restore_value: no
+    initial_value: '0.0'
+
+interval:
+  - interval: 10s
+    then:
+      - lambda: |-
+          ESP_LOGI("cal", "PEAK (10s): %.3fA - resetting", id(peak_current));
+          id(peak_current) = 0.0;
+### DEBUG END #############################################
+
 sensor:
   - platform: cse7766
     current:
       on_value:
         then:
           - lambda: |-
+              ### DEBUG START - Remove after calibration ###
+              if (x > id(peak_current)) {
+                id(peak_current) = x;
+                ESP_LOGI("cal", "NEW PEAK: %.3fA (P=%.1fW)", x, id(power_sensor).state);
+              }
+              ### DEBUG END ###
+
               if (id(relay).state && x > id(current_limit).state) {
                 ESP_LOGW("limiter", "OVERLOAD: %.2fA > %.1fA - OFF", x, id(current_limit).state);
                 id(relay).turn_off();
               }
+
+### DEBUG START - Remove after calibration ###############
+  - platform: template
+    name: "Peak Current (10s)"
+    id: peak_current_sensor
+    unit_of_measurement: "A"
+    icon: "mdi:chart-line-variant"
+    accuracy_decimals: 3
+    lambda: 'return id(peak_current);'
+    update_interval: 1s
+### DEBUG END #############################################
 
 number:
   - platform: template
