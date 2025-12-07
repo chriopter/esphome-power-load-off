@@ -4,23 +4,6 @@ ESPHome-Firmware für Athom ESP32-C3 Smart Plug V3 mit automatischer Abschaltung
 
 ## Funktionsweise
 
-```
-┌─────────────────┐
-│       AN        │◄──────────────────┐
-│  Strom fließt   │                   │
-│  LED = an       │                   │
-└────────┬────────┘                   │
-         │                            │
-         │ Ampere > Limit             │ Taste
-         │ ODER Taste                 │
-         ▼                            │
-┌─────────────────┐                   │
-│       AUS       │───────────────────┘
-│  Kein Strom     │
-│  LED = blinkt   │
-└─────────────────┘
-```
-
 <details>
 <summary><strong>Programmablaufplan (DIN 66001)</strong></summary>
 
