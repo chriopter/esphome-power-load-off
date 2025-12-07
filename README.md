@@ -21,6 +21,110 @@ ESPHome-Firmware für Athom ESP32-C3 Smart Plug V3 mit automatischer Abschaltung
 └─────────────────┘
 ```
 
+<details>
+<summary><strong>Programmablaufplan (DIN 66001)</strong></summary>
+
+```
+                    ┌───────────────────┐
+                    │      START        │
+                    │   (Gerät Boot)    │
+                    └─────────┬─────────┘
+                              │
+                              ▼
+                    ┌─────────────────────┐
+                    │ Lade gespeicherte   │
+                    │ Werte aus Flash     │
+                    │ • current_limit     │
+                    │ • relay_state       │
+                    └─────────┬───────────┘
+                              │
+                              ▼
+                      ╱‾‾‾‾‾‾‾‾‾‾‾‾‾╲
+                     ╱   Relais war   ╲    Nein
+                    ╱      AN?         ╲────────┐
+                    ╲                  ╱        │
+                     ╲________________╱         │
+                              │ Ja              │
+                              ▼                 ▼
+                    ┌───────────────┐  ┌───────────────┐
+                    │  LED = AN     │  │ LED = Blinken │
+                    └───────┬───────┘  └───────┬───────┘
+                            │                  │
+                            └────────┬─────────┘
+                                     │
+           ┌─────────────────────────┼─────────────────────────┐
+           │                         ▼                         │
+           │               ══════════════════                  │
+           │               ║   HAUPTSCHLEIFE ║                 │
+           │               ║    (alle 50ms)  ║                 │
+           │               ══════════════════                  │
+           │                         │                         │
+           │         ┌───────────────┴───────────────┐         │
+           │         ▼                               ▼         │
+           │ ┌───────────────────┐         ┌───────────────┐   │
+           │ │ Lese Stromstärke  │         │ Lese Taster   │   │
+           │ │ vom CSE7766       │         │ GPIO3         │   │
+           │ └─────────┬─────────┘         └───────┬───────┘   │
+           │           │                           │           │
+           │           ▼                           ▼           │
+           │   ╱‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾╲          ╱‾‾‾‾‾‾‾‾‾‾‾‾‾╲     │
+           │  ╱  Relais = AN     ╲        ╱ Kurz gedrückt ╲    │
+           │ ╱   UND              ╲      ╱   (< 1s)?       ╲   │
+           │ ╲ Strom > Limit?    ╱       ╲                ╱    │
+           │  ╲_________________╱         ╲______________╱     │
+           │           │                         │             │
+           │      Ja   │   Nein            Ja    │    Nein     │
+           │           ▼                         ▼             │
+           │   ┌───────────────┐         ┌───────────────┐     │
+           │   │ Log: OVERLOAD │         │ Toggle Relais │     │
+           │   └───────┬───────┘         └───────┬───────┘     │
+           │           │                         │             │
+           │           ▼                         │             │
+           │   ┌───────────────┐                 │             │
+           │   │ Relais = AUS  │◄────────────────┘             │
+           │   └───────┬───────┘                               │
+           │           │                                       │
+           │           ▼                                       │
+           │   ╱‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾╲                               │
+           │  ╱  Relais = AN?   ╲                              │
+           │  ╲                 ╱                              │
+           │   ╲_______________╱                               │
+           │      │         │                                  │
+           │  Ja  │         │ Nein                             │
+           │      ▼         ▼                                  │
+           │ ┌─────────┐ ┌─────────────┐                       │
+           │ │ LED AN  │ │ LED Blinken │                       │
+           │ └────┬────┘ └──────┬──────┘                       │
+           │      │             │                              │
+           │      └──────┬──────┘                              │
+           │             │                                     │
+           └─────────────┴─────────────────────────────────────┘
+                  ▲
+                  │ (Endlosschleife)
+
+    ════════════════════════════════════════════════════════
+
+    LEGENDE (DIN 66001):
+    ┌─────────┐
+    │         │  Verarbeitung / Operation
+    └─────────┘
+
+      ╱‾‾‾‾‾╲
+     ╱       ╲   Verzweigung / Entscheidung
+     ╲       ╱
+      ╲_____╱
+
+    ═══════════
+    ║         ║  Unterprogramm / Schleife
+    ═══════════
+
+    ────────────  Ablauflinie
+        │
+        ▼
+```
+
+</details>
+
 - **Stromstärkegrenze** - Schaltet ab bei Ampere-Überschreitung (0-16A einstellbar)
 - **LED-Anzeige** - Dauerhaft = AN, Blinken = AUS
 - **Taste** - Kurz = Ein/Aus, Lang 4s = Werksreset
