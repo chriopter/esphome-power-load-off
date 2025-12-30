@@ -1,226 +1,18 @@
-# Athom Smart Plug V3 - Strombegrenzer
+# Power Limiter
 
-ESPHome-Firmware für Athom ESP32-C3 Smart Plug V3 mit automatischer Abschaltung bei Stromüberschreitung.
+ESPHome firmware for Athom Smart Plug V3 with current-based power limiting and interval timer.
 
-## Funktionsweise
+## Behavior
 
-<details>
-<summary><strong>Programmablaufplan (DIN 66001)</strong></summary>
-
-```
-══════════════════════════════════════════════════════════════════════════════
-                              INITIALISIERUNG
-══════════════════════════════════════════════════════════════════════════════
-
-                              ╭───────────╮
-                              │   START   │
-                              ╰─────┬─────╯
-                                    │
-                                    ▼
-                        ╱─────────────────────╱
-                       ╱  Lade aus Flash:    ╱
-                      ╱   • relay_state     ╱
-                     ╱    • current_limit  ╱
-                    ╱     • total_energy  ╱
-                   ╱─────────────────────╱
-                                    │
-                                    ▼
-                               ╱────────╲
-                              ╱  Relais  ╲────Nein───┐
-                              ╲   AN?    ╱           │
-                               ╲────────╱            │
-                                    │ Ja             │
-                                    ▼                ▼
-                       ╲───────────────────╲    ╲────────────────╲
-                        ╲  LED := AN       ╱     ╲  LED := Blink ╱
-                         ╲────────────────╱       ╲─────────────╱
-                                    │                    │
-                                    └─────────┬──────────┘
-                                              │
-                        ╲─────────────────────────────────╲
-                         ╲  Relais := relay_state        ╱
-                          ╲─────────────────────────────╱
-                                              │
-                                              ▼
-                                   ╭─────────────────╮
-                                   │ BEREIT / WARTEN │
-                                   ╰─────────────────╯
-
-
-══════════════════════════════════════════════════════════════════════════════
-                          EVENT: STROMMESSUNG (50ms)
-══════════════════════════════════════════════════════════════════════════════
-
-                        ╱───────────────────────╱
-                       ╱  Strom := CSE7766.read ╱
-                      ╱───────────────────────╱
-                                    │
-                                    ▼
-                         ╱───────────────────╲
-                        ╱  Relais = AN        ╲
-                       ╱   UND                 ╲────Nein───▶╭───────╮
-                       ╲   Strom > Limit?      ╱            │ Ende  │
-                        ╲─────────────────────╱             ╰───────╯
-                                    │ Ja
-                                    ▼
-                       ╲────────────────────────╲
-                        ╲  Log := "OVERLOAD:   ╱
-                         ╲  x.xxA > y.yA"     ╱
-                          ╲──────────────────╱
-                                    │
-                                    ▼
-                       ╲────────────────────────╲
-                        ╲  Relais := AUS        ╱───▶ (löst EVENT:
-                         ╲─────────────────────╱        RELAIS AUS aus)
-
-
-══════════════════════════════════════════════════════════════════════════════
-                             EVENT: TASTENDRUCK
-══════════════════════════════════════════════════════════════════════════════
-
-                        ╱───────────────────────╱
-                       ╱  Tastendruck := GPIO3  ╱
-                      ╱───────────────────────╱
-                                    │
-                                    ▼
-                         ╱───────────────────╲
-                        ╱   Dauer der         ╲
-                       ╱    Betätigung?        ╲
-                       ╲                       ╱
-                        ╲─────────────────────╱
-                           │              │
-               < 1s        │              │  ≥ 4s
-              (kurz)       │              │ (lang)
-                           ▼              ▼
-                  ╱─────────────╲    ┌────────────────────┐
-                 ╱  Relais AN?   ╲   │   Factory Reset    │
-                 ╲               ╱   └─────────┬──────────┘
-                  ╲─────────────╱              │
-                    │         │                ▼
-                Ja  │         │ Nein    ╭────────────╮
-                    ▼         ▼         │ Neustart   │
-       ╲──────────────╲    ╲──────────────╲  ╰────────────╯
-        ╲ Relais := 0 ╱     ╲ Relais := 1 ╱
-         ╲───────────╱       ╲───────────╱
-                │                  │
-                ▼                  ▼
-          ╭──────────╮       ╭──────────╮
-          │ EVENT:   │       │ EVENT:   │
-          │ RELAIS   │       │ RELAIS   │
-          │ AUS      │       │ AN       │
-          ╰──────────╯       ╰──────────╯
-
-
-══════════════════════════════════════════════════════════════════════════════
-                             EVENT: RELAIS AN
-══════════════════════════════════════════════════════════════════════════════
-
-                         ╭─────────────────╮
-                         │ Relais → AN     │
-                         ╰────────┬────────╯
-                                  │
-                                  ▼
-                      ┌───────────────────────┐
-                      │ Stoppe Blink-Script   │
-                      └───────────┬───────────┘
-                                  │
-                                  ▼
-                         ╲────────────────╲
-                          ╲  LED := AN    ╱
-                           ╲─────────────╱
-                                  │
-                                  ▼
-                              ╭───────╮
-                              │ Ende  │
-                              ╰───────╯
-
-
-══════════════════════════════════════════════════════════════════════════════
-                             EVENT: RELAIS AUS
-══════════════════════════════════════════════════════════════════════════════
-
-                         ╭─────────────────╮
-                         │ Relais → AUS    │
-                         ╰────────┬────────╯
-                                  │
-                                  ▼
-                      ┌───────────────────────┐
-                      │   Starte Blink-Script │
-                      └───────────┬───────────┘
-                                  │
-                                  ▼
-                   ┌──────────────────────────────┐
-                   │ ╔══════════════════════════╗ │
-                   │ ║  WHILE Relais = AUS      ║ │
-              ┌───▶│ ╚══════════════════════════╝ │
-              │    └──────────────┬───────────────┘
-              │                   │
-              │                   ▼
-              │          ╲────────────────╲
-              │           ╲  LED := AN    ╱
-              │            ╲─────────────╱
-              │                   │
-              │                   ▼
-              │          ┌──────────────┐
-              │          │ Warte 500ms  │
-              │          └───────┬──────┘
-              │                  │
-              │                  ▼
-              │          ╲────────────────╲
-              │           ╲  LED := AUS   ╱
-              │            ╲─────────────╱
-              │                  │
-              │                  ▼
-              │          ┌──────────────┐
-              │          │ Warte 500ms  │
-              │          └───────┬──────┘
-              │                  │
-              └──────────────────┘
-
-                    (Schleife endet wenn Relais → AN)
-
-
-══════════════════════════════════════════════════════════════════════════════
-                            LEGENDE (DIN 66001)
-══════════════════════════════════════════════════════════════════════════════
-
-    ╭─────────╮
-    │         │     Grenzstelle (Start / Ende / Ereignis)
-    ╰─────────╯
-
-    ┌─────────┐
-    │         │     Operation / Verarbeitung
-    └─────────┘
-
-       ╱───╲
-      ╱     ╲       Verzweigung / Entscheidung
-      ╲     ╱
-       ╲───╱
-
-    ╱─────────╱
-   ╱         ╱      Eingabe (Sensor, Taster, Speicher)
-  ╱─────────╱
-
-    ╲─────────╲
-     ╲         ╱    Ausgabe (LED, Relais, Log)
-      ╲───────╱
-
-    ╔═════════╗
-    ║  WHILE  ║     Schleifenbedingung
-    ╚═════════╝
-
-    ─────▶          Ablauflinie mit Richtung
-```
-
-</details>
-
-- **Stromstärkegrenze** - Schaltet ab bei Ampere-Überschreitung (0-16A einstellbar)
-- **LED-Anzeige** - Dauerhaft = AN, Blinken = AUS
-- **Taste** - Kurz = Ein/Aus, Lang 4s = Werksreset
-- **Persistenz** - Einstellungen überleben Neustart (siehe Hardware)
-- **Offline-fähig** - Funktioniert ohne WiFi
-- **Messung** - Alle 50ms
-- **Erweiterbar** - Zeitschaltuhr oder Remote-Einschaltung kann eingebaut werden, wenn mehr als Sicherheitsabschaltung gewünscht
+- **Overcurrent detected:** Relay turns off after trip delay, fault state activates, blue LED blinks until manual reset
+- **Fault reset:** Short button press or "Sicherheitsfreigabe" switch clears fault and starts a new cycle
+- **Interval timer active:** Relay turns on for configured run duration, then off until next interval
+- **Start After Boot enabled:** First cycle starts immediately on boot instead of waiting for interval
+- **Manual power on during fault:** Blocked until fault is cleared
+- **Long button press (4s):** Factory reset
+- **Blue LED solid:** System OK / ready
+- **Blue LED blinking:** Fault active (overcurrent tripped)
+- **Red LED:** Hardwired to relay state
 
 ## Details
 
@@ -231,10 +23,14 @@ ESPHome-Firmware für Athom ESP32-C3 Smart Plug V3 mit automatischer Abschaltung
 substitutions:
   name: "power-limiter"
   friendly_name: "Power Limiter"
-  sensor_update_interval: 50ms
+  sensor_update_interval: 10s
 ```
 
-Stromstärkegrenze ändern: `initial_value` in Number-Komponente oder via Home Assistant (0-16A, Standard: 10A).
+Einstellbar via Home Assistant:
+- **Current Limit:** 0-16A (Standard: 10A)
+- **Trip Delay:** 0-5000ms (Standard: 200ms)
+- **Interval:** Aus, 1h-24h
+- **Run Duration:** 1-30 min (Standard: 5 min)
 
 </details>
 
@@ -247,15 +43,20 @@ Athom Smart Plug V3 (ESP32-C3):
 |------|----------|
 | 3 | Taster |
 | 5 | Relais |
-| 6 | LED |
-| 20 | CSE7766 |
+| 6 | Blaue LED |
+| 20 | CSE7766 RX |
+
+Rote LED ist hardwired mit Relais.
 
 **Flash-Persistenz** (überleben Neustart):
 
 | Wert | Beschreibung |
 |------|--------------|
-| Schaltzustand | AN/AUS |
 | `current_limit` | Schwelle in Ampere |
+| `trip_delay` | Verzögerung in ms |
+| `timer_interval` | Intervall-Einstellung |
+| `run_duration` | Laufzeit-Einstellung |
+| `start_after_boot_flag` | Sofortstart nach Boot |
 | `total_energy` | Kumulierte kWh |
 
 </details>
@@ -263,33 +64,36 @@ Athom Smart Plug V3 (ESP32-C3):
 <details>
 <summary><strong>Entitäten</strong></summary>
 
-**Schreibbar**
+**Steuerung**
 
 | Entität | Beschreibung |
 |---------|--------------|
+| Power | Relais ein/aus (blockiert bei Fault) |
+| Sicherheitsfreigabe | Fault zurücksetzen / manuell sperren |
+| Start Cycle After Boot | Sofortstart wenn Timer aktiv |
+| Interval | Timer-Intervall (Aus, 1h-24h) |
+| Run Duration | Laufzeit pro Zyklus (1-30 min) |
 | Current Limit | Auslöseschwelle 0-16A |
-| Restart | Gerät neustarten |
-| Factory Reset | Werkseinstellungen |
-| Safe Mode | OTA-Wiederherstellung |
-
-> **Sicherheit:** Der Schalter ist standardmäßig nur per Taste bedienbar (nicht via Home Assistant). Für Remote-Steuerung: `name: "Power"` in `esphome.yaml` einkommentieren und `internal: true` entfernen.
+| Trip Delay | Verzögerung vor Auslösung 0-5000ms |
 
 **Messwerte**
 
 | Entität | Beschreibung |
 |---------|--------------|
-| Power Off | Problem-Anzeige wenn AUS |
-| Power (Sensor) | Wattzahl |
-| Voltage | Spannung (V) |
 | Current | Stromstärke (A) |
+| Voltage | Spannung (V) |
+| Power | Leistung (W) |
 | Energy | Sitzungs-kWh |
-| Total Energy | Gesamt-kWh |
+| Total Energy | Gesamt-kWh (persistent) |
 | Total Daily Energy | Tages-kWh |
 | Power Factor | Leistungsfaktor |
 | Apparent Power | Scheinleistung (VA) |
 | Reactive Power | Blindleistung (var) |
+| Peak Current | Höchster gemessener Strom |
+| Minutes Since Last Cycle | Zeit seit letztem Zyklusstart |
+| Minutes Until Next Cycle | Zeit bis nächster Zyklus |
 
-**Geräteinfo**
+**System**
 
 | Entität | Beschreibung |
 |---------|--------------|
@@ -299,16 +103,10 @@ Athom Smart Plug V3 (ESP32-C3):
 | IP Address | Netzwerk-IP |
 | MAC Address | Geräte-MAC |
 | Connected SSID | WiFi-Netzwerk |
-| Last Restart | Neustart-Zeitstempel |
 | ESPHome Version | Firmware-Version |
+| Restart | Gerät neustarten |
+| Factory Reset | Werkseinstellungen |
+| Safe Mode | OTA-Wiederherstellung |
+| Reset Peak | Peak Current zurücksetzen |
 
 </details>
-
-## TODO
-
-- [ ] Web UI an/aus Entscheidung (aktuell an via Athom-Package, Port 80, kein Passwort)
-- [ ] Athom-Package später einbetten (Copy-Paste statt GitHub-Abhängigkeit)
-
-## Referenz & Lizenz
-
-Basiert auf [athom-smart-plug.yaml](https://github.com/athom-tech/esp32-configs/blob/main/athom-smart-plug.yaml). MIT Lizenz.
