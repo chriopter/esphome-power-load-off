@@ -7,35 +7,38 @@ ESPHome für Athom Smart Plug V3 mit Strombegrenzung und Intervall-Timer.
 ### Störung
 LED blinkt blau
 
-| Aktion | Ergebnis |
-|--------|----------|
-| Taste kurz | → Bereit |
-| Sicherheitsfreigabe EIN | → Bereit |
-| Schalter EIN | Blockiert |
-| Neustart | Bleibt Störung |
-| Taste lang 4s | Werksreset |
+| Eingabe | Aktion | Nächster Zustand |
+|---------|--------|------------------|
+| Taste | Kurz drücken | → Bereit |
+| HA | Schalter EIN | Blockiert |
+| HA | Sicherheitsfreigabe EIN | → Bereit |
+| — | Neustart | Bleibt Störung |
 
 ### Bereit
 LED dauerhaft blau, Relais AUS
 
-| Aktion | Ergebnis |
-|--------|----------|
-| Taste kurz | → An |
-| Schalter EIN | → An |
-| Intervall erreicht | → An |
-| Sicherheitsfreigabe AUS | → Störung |
-| Taste lang 4s | Werksreset |
+| Eingabe | Aktion | Nächster Zustand |
+|---------|--------|------------------|
+| Taste | Kurz drücken | → An |
+| HA | Schalter EIN | → An |
+| HA | Sicherheitsfreigabe AUS | → Störung |
+| Timer | Intervall erreicht | → An |
 
 ### An
 LED dauerhaft blau + rot, Relais AN
 
-| Aktion | Ergebnis |
-|--------|----------|
-| Strom > Limit | → Störung |
-| Taste kurz | → Bereit |
-| Schalter AUS | → Bereit |
-| Intervalllänge abgelaufen | → Bereit |
-| Taste lang 4s | Werksreset |
+| Eingabe | Aktion | Nächster Zustand |
+|---------|--------|------------------|
+| Sensor | Strom > Limit | → Störung |
+| Taste | Kurz drücken | → Bereit |
+| HA | Schalter AUS | → Bereit |
+| Timer | Intervalllänge abgelaufen | → Bereit |
+
+## Allgemein
+
+| Eingabe | Aktion | Ergebnis |
+|---------|--------|----------|
+| Taste | Lang drücken (4s) | Werksreset |
 
 ## Einstellungen
 
