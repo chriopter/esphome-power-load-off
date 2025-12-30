@@ -1,130 +1,632 @@
 ################################################
 #
-# DEVICE CONFIGURATION
+# ATHOM SMART PLUG V3 - STROMBEGRENZER + ZEITSCHALTUHR
+# Standalone Version
+#
+# Hardware: Athom ESP32-C3 Smart Plug V3
+# GPIOs: 3=Button, 5=Relay, 6=Blue LED, 20=CSE7766 RX
+# Rote LED ist hardwired mit Relay
 #
 ################################################
 
 substitutions:
-  name: "power-limiter"
-  friendly_name: "Power Limiter"
+  name: power-limiter
+  friendly_name: Power Limiter
+  sensor_update_interval: 10s
 
-api:
-  encryption:
-    key: !secret api_key
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  name_add_mac_suffix: false
+  platformio_options:
+    board_build.mcu: esp32c3
+    board_build.variant: esp32c3
+    board_build.flash_mode: dio
+  on_boot:
+    - priority: 600
+      then:
+        # Reset Timer-Variablen
+        - lambda: |-
+            id(fault_active) = false;
+            id(overload_start_time) = 0;
+            id(last_cycle_start) = millis();
+            id(cycle_running) = false;
+        # Boot-Signal: 3x schnelles Blinken
+        - repeat:
+            count: 3
+            then:
+              - light.turn_on: blue_led
+              - delay: 100ms
+              - light.turn_off: blue_led
+              - delay: 100ms
+        - delay: 200ms
+        # Starte ersten Zyklus wenn Intervall aktiv
+        - lambda: |-
+            int idx = id(timer_interval).active_index().value_or(0);
+            if (idx > 0 && id(start_after_boot_flag)) {
+              // Zeitschaltuhr aktiv + Start After Boot = sofort starten
+              id(last_cycle_start) = millis();
+              id(cycle_running) = true;
+              id(relay_hw).turn_on();
+            } else if (idx > 0) {
+              // Zeitschaltuhr aktiv - warte auf Intervall
+              id(last_cycle_start) = millis();
+              id(cycle_running) = false;
+            }
+        # Blau an = freigegeben
+        - light.turn_on: blue_led
+
+esp32:
+  board: esp32-c3-devkitm-1
+  flash_size: 4MB
+  variant: ESP32C3
+  framework:
+    type: esp-idf
+    version: recommended
+
+preferences:
+  flash_write_interval: 5min
+
+logger:
+  baud_rate: 0
+  level: INFO
+
+ota:
+  - platform: esphome
 
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  ap: {}
 
-# Web UI comes from Athom package (port 80)
+captive_portal:
 
-################################################
-#
-# ATHOM SMART PLUG V3 - BASE
-# Source: https://github.com/athom-tech/esp32-configs/blob/main/athom-smart-plug.yaml
-#
-# NOTE: Using external package during development.
-# For production, consider embedding the code directly
-# to avoid dependency on external repo changes.
-# See git history for embedded version.
-#
-################################################
+web_server:
+  port: 80
 
-packages:
-  athom: github://athom-tech/esp32-configs/athom-smart-plug.yaml@main
+mdns:
+  disabled: false
 
 ################################################
 #
-# CURRENT LIMITER - CUSTOM EXTENSION
-# Automatic power cutoff when current exceeds limit
+# UART für CSE7766
 #
 ################################################
 
-esphome:
-  on_boot:
-    - priority: 600
-      then:
-        - if:
-            condition:
-              switch.is_on: relay
-            then:
-              - light.turn_on: blue_led
-            else:
-              - script.execute: led_blink
+uart:
+  rx_pin: GPIO20
+  baud_rate: 4800
+  data_bits: 8
+  stop_bits: 1
+  parity: EVEN
 
-binary_sensor:
-  - platform: template
-    name: "Power Off"
-    icon: "mdi:alert-circle"
-    device_class: problem
-    lambda: 'return !id(relay).state;'
+################################################
+#
+# GLOBALE VARIABLEN
+#
+################################################
 
-### DEBUG START - Remove after calibration ###############
 globals:
+  # Sicherheit
+  - id: fault_active
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+  - id: overload_start_time
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+
   - id: peak_current
     type: float
     restore_value: no
     initial_value: '0.0'
 
-interval:
-  - interval: 10s
-    then:
-      - lambda: |-
-          ESP_LOGI("cal", "PEAK (10s): %.3fA - resetting", id(peak_current));
-          id(peak_current) = 0.0;
-### DEBUG END #############################################
+  # Zeitschaltuhr
+  - id: last_cycle_start
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+
+  - id: cycle_running
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+  # Energie
+  - id: total_energy
+    type: float
+    restore_value: yes
+    initial_value: '0.0'
+
+  # Strom für Template-Sensor
+  - id: last_current
+    type: float
+    restore_value: no
+    initial_value: '0.0'
+
+  # Start After Boot Flag
+  - id: start_after_boot_flag
+    type: bool
+    restore_value: yes
+    initial_value: 'false'
+
+################################################
+#
+# ZEITSCHALTUHR - EINSTELLUNGEN
+#
+################################################
+
+select:
+  - platform: template
+    name: "Interval"
+    id: timer_interval
+    icon: "mdi:timer-outline"
+    optimistic: true
+    restore_value: true
+    options:
+      - "Aus"
+      - "1h"
+      - "2h"
+      - "3h"
+      - "4h"
+      - "6h"
+      - "8h"
+      - "12h"
+      - "24h"
+    initial_option: "Aus"
+    on_value:
+      then:
+        - lambda: |-
+            if (i > 0) {
+              // Timer aktiviert - warte auf erstes Intervall
+              id(last_cycle_start) = millis();
+              id(cycle_running) = false;
+            } else {
+              // Timer deaktiviert
+              id(cycle_running) = false;
+            }
+
+################################################
+#
+# STROMBEGRENZER - EINSTELLUNGEN
+#
+################################################
+
+  - platform: template
+    name: "Run Duration"
+    id: run_duration
+    icon: "mdi:timelapse"
+    optimistic: true
+    restore_value: true
+    options:
+      - "1 min"
+      - "2 min"
+      - "3 min"
+      - "4 min"
+      - "5 min"
+      - "6 min"
+      - "7 min"
+      - "8 min"
+      - "9 min"
+      - "10 min"
+      - "11 min"
+      - "12 min"
+      - "13 min"
+      - "14 min"
+      - "15 min"
+      - "16 min"
+      - "17 min"
+      - "18 min"
+      - "19 min"
+      - "20 min"
+      - "21 min"
+      - "22 min"
+      - "23 min"
+      - "24 min"
+      - "25 min"
+      - "26 min"
+      - "27 min"
+      - "28 min"
+      - "29 min"
+      - "30 min"
+    initial_option: "5 min"
+
+number:
+  - platform: template
+    name: "Current Limit"
+    id: current_limit_number
+    icon: "mdi:current-ac"
+    unit_of_measurement: "A"
+    optimistic: true
+    restore_value: true
+    initial_value: 10
+    min_value: 0
+    max_value: 16
+    step: 0.1
+    mode: box
+
+  - platform: template
+    name: "Trip Delay"
+    id: trip_delay
+    icon: "mdi:timer-alert-outline"
+    unit_of_measurement: "ms"
+    optimistic: true
+    restore_value: true
+    initial_value: 200
+    min_value: 0
+    max_value: 5000
+    step: 1
+    mode: box
+
+################################################
+#
+# SENSOREN
+#
+################################################
 
 sensor:
+  # CSE7766 - Rohdaten für schnelle Abschaltung
   - platform: cse7766
     current:
+      id: current_raw
+      internal: true
       on_value:
         then:
           - lambda: |-
-              ### DEBUG START - Remove after calibration ###
+              id(last_current) = x;
+
+              // Peak-Tracking
               if (x > id(peak_current)) {
                 id(peak_current) = x;
-                ESP_LOGI("cal", "NEW PEAK: %.3fA (P=%.1fW)", x, id(power_sensor).state);
-              }
-              ### DEBUG END ###
-
-              if (id(relay).state && x > id(current_limit).state) {
-                ESP_LOGW("limiter", "OVERLOAD: %.2fA > %.1fA - OFF", x, id(current_limit).state);
-                id(relay).turn_off();
               }
 
-### DEBUG START - Remove after calibration ###############
+              // Keine Prüfung wenn Fault bereits aktiv oder Relay aus
+              if (id(fault_active) || !id(relay_hw).state) {
+                id(overload_start_time) = 0;
+                return;
+              }
+
+              float limit = id(current_limit_number).state;
+              uint32_t delay_ms = (uint32_t)id(trip_delay).state;
+              uint32_t now = millis();
+
+              if (limit <= 0) return;
+
+              if (x > limit) {
+                if (id(overload_start_time) == 0) {
+                  id(overload_start_time) = now;
+                  ESP_LOGW("limiter", "OVERLOAD START: %.3fA > %.2fA", x, limit);
+                } else {
+                  uint32_t elapsed = now - id(overload_start_time);
+                  if (elapsed >= delay_ms) {
+                    ESP_LOGW("limiter", "TRIP: %.3fA > %.2fA for %ums - FAULT", x, limit, elapsed);
+                    id(fault_active) = true;
+                    id(relay_hw).turn_off();
+                    id(overload_start_time) = 0;
+                  }
+                }
+              } else {
+                if (id(overload_start_time) != 0) {
+                  id(overload_start_time) = 0;
+                }
+              }
+
+    voltage:
+      id: voltage_raw
+      internal: true
+
+    power:
+      id: power_raw
+      internal: true
+
+    energy:
+      id: energy_raw
+      internal: true
+      on_value:
+        then:
+          - lambda: |-
+              static float previous_energy_value = 0.0;
+              float current_energy_value = x * 0.001;
+              id(total_energy) += current_energy_value - previous_energy_value;
+              previous_energy_value = current_energy_value;
+
+    apparent_power:
+      id: apparent_power_raw
+      internal: true
+
+    reactive_power:
+      id: reactive_power_raw
+      internal: true
+
+    power_factor:
+      id: power_factor_raw
+      internal: true
+
+  # Template Sensoren für HA
   - platform: template
-    name: "Peak Current (10s)"
+    name: "Current"
+    icon: mdi:current-ac
+    unit_of_measurement: "A"
+    accuracy_decimals: 3
+    lambda: |-
+      float v = id(last_current);
+      return (v < 0.060) ? 0.0 : v;
+    update_interval: ${sensor_update_interval}
+
+  - platform: template
+    name: "Voltage"
+    icon: mdi:sine-wave
+    unit_of_measurement: "V"
+    accuracy_decimals: 1
+    lambda: 'return id(voltage_raw).state;'
+    update_interval: ${sensor_update_interval}
+
+  - platform: template
+    name: "Power"
+    id: power_sensor
+    icon: mdi:power
+    unit_of_measurement: "W"
+    accuracy_decimals: 1
+    lambda: |-
+      float v = id(power_raw).state;
+      return (v < 3.0) ? 0.0 : v;
+    update_interval: ${sensor_update_interval}
+
+  - platform: template
+    name: "Energy"
+    icon: mdi:lightning-bolt
+    unit_of_measurement: "kWh"
+    accuracy_decimals: 3
+    lambda: 'return id(energy_raw).state * 0.001;'
+    update_interval: ${sensor_update_interval}
+
+  - platform: template
+    name: "Total Energy"
+    id: total_energy_sensor
+    unit_of_measurement: "kWh"
+    device_class: "energy"
+    state_class: "total_increasing"
+    icon: mdi:lightning-bolt
+    accuracy_decimals: 3
+    lambda: 'return id(total_energy);'
+    update_interval: ${sensor_update_interval}
+
+  - platform: total_daily_energy
+    name: "Total Daily Energy"
+    restore: true
+    power_id: power_sensor
+    unit_of_measurement: "kWh"
+    icon: mdi:hours-24
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+
+  - platform: template
+    name: "Apparent Power"
+    icon: mdi:power
+    unit_of_measurement: "VA"
+    accuracy_decimals: 1
+    lambda: 'return id(apparent_power_raw).state;'
+    update_interval: ${sensor_update_interval}
+
+  - platform: template
+    name: "Reactive Power"
+    icon: mdi:flash
+    unit_of_measurement: "var"
+    accuracy_decimals: 1
+    lambda: 'return id(reactive_power_raw).state;'
+    update_interval: ${sensor_update_interval}
+
+  - platform: template
+    name: "Power Factor"
+    icon: mdi:percent-outline
+    accuracy_decimals: 2
+    lambda: 'return id(power_factor_raw).state;'
+    update_interval: ${sensor_update_interval}
+
+  - platform: template
+    name: "Peak Current"
     id: peak_current_sensor
     unit_of_measurement: "A"
     icon: "mdi:chart-line-variant"
     accuracy_decimals: 3
     lambda: 'return id(peak_current);'
     update_interval: 1s
-### DEBUG END #############################################
 
-number:
+  # Timer-Status Sensoren
   - platform: template
-    name: "Current Limit"
-    id: current_limit
-    icon: "mdi:current-ac"
-    unit_of_measurement: "A"
-    entity_category: config
-    optimistic: true
-    restore_value: true
-    initial_value: 10
-    min_value: 0
-    max_value: 16
-    step: 0.01
+    name: "Minutes Since Last Cycle"
+    id: minutes_since_cycle
+    icon: "mdi:timer-sand"
+    unit_of_measurement: "min"
+    accuracy_decimals: 0
+    lambda: |-
+      if (id(timer_interval).active_index().value_or(0) == 0) {
+        return NAN;
+      }
+      uint32_t elapsed = millis() - id(last_cycle_start);
+      return elapsed / 60000.0;
+    update_interval: 10s
+
+  - platform: template
+    name: "Minutes Until Next Cycle"
+    id: minutes_until_cycle
+    icon: "mdi:timer-sand-complete"
+    unit_of_measurement: "min"
+    accuracy_decimals: 0
+    lambda: |-
+      int idx = id(timer_interval).active_index().value_or(0);
+      if (idx == 0) {
+        return NAN;
+      }
+
+      // Intervall in Minuten
+      int intervals[] = {0, 60, 120, 180, 240, 360, 480, 720, 1440};
+      int interval_min = intervals[idx];
+
+      // Run Duration: Index + 1 = Minuten
+      int run_idx = id(run_duration).active_index().value_or(4);
+      int run_min = run_idx + 1;
+
+      uint32_t elapsed_ms = millis() - id(last_cycle_start);
+      uint32_t elapsed_min = elapsed_ms / 60000;
+
+      if (id(cycle_running) && id(relay_hw).state) {
+        // Gerade im Zyklus - zeige Zeit bis Ende + Intervall
+        if (elapsed_min < run_min) {
+          return interval_min + (run_min - elapsed_min);
+        }
+      }
+
+      if (elapsed_min >= interval_min) {
+        return 0;
+      }
+      return interval_min - elapsed_min;
+    update_interval: 10s
+
+  - platform: uptime
+    name: "Uptime"
+    entity_category: diagnostic
+
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+    entity_category: diagnostic
+
+################################################
+#
+# BINARY SENSOREN
+#
+################################################
+
+binary_sensor:
+  - platform: status
+    name: "Status"
+    entity_category: diagnostic
+
+  - platform: gpio
+    pin:
+      number: GPIO3
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Button"
+    id: power_button
+    disabled_by_default: true
+    on_multi_click:
+      # Kurz: Reset Fault + Starte Zyklus
+      - timing:
+          - ON for at most 1s
+          - OFF for at least 0.2s
+        then:
+          - lambda: |-
+              id(fault_active) = false;
+              id(peak_current) = 0.0;
+              id(overload_start_time) = 0;
+              id(last_cycle_start) = millis();
+              id(cycle_running) = true;
+          - switch.turn_on: relay_hw
+      # Lang 4s: Factory Reset
+      - timing:
+          - ON for at least 4s
+        then:
+          - button.press: factory_reset_button
+
+################################################
+#
+# SCHALTER
+#
+################################################
 
 switch:
+  - platform: template
+    name: "Power"
+    id: relay_control
+    icon: mdi:power-socket-eu
+    lambda: 'return id(relay_hw).state;'
+    turn_on_action:
+      - if:
+          condition:
+            lambda: 'return !id(fault_active);'
+          then:
+            - switch.turn_on: relay_hw
+    turn_off_action:
+      - switch.turn_off: relay_hw
+
+  - platform: template
+    name: "Start Cycle After Boot"
+    id: start_after_boot
+    icon: "mdi:power-plug"
+    entity_category: config
+    lambda: 'return id(start_after_boot_flag);'
+    turn_on_action:
+      - lambda: 'id(start_after_boot_flag) = true;'
+    turn_off_action:
+      - lambda: 'id(start_after_boot_flag) = false;'
+
   - platform: gpio
-    id: relay
+    id: relay_hw
+    pin: GPIO5
+    restore_mode: RESTORE_DEFAULT_OFF
+    internal: true
     on_turn_on:
+      - light.turn_on: blue_led
+      - lambda: |-
+          id(overload_start_time) = 0;
+          id(last_cycle_start) = millis();
+          id(cycle_running) = true;
+    on_turn_off:
+      - lambda: 'id(cycle_running) = false;'
+      - if:
+          condition:
+            lambda: 'return id(fault_active);'
+          then:
+            - script.execute: led_blink
+          else:
+            - light.turn_on: blue_led
+
+  - platform: template
+    name: "Sicherheitsfreigabe"
+    id: safety_release
+    icon: "mdi:shield-check"
+    lambda: 'return !id(fault_active);'
+    turn_on_action:
+      - lambda: |-
+          id(fault_active) = false;
+          id(peak_current) = 0.0;
+          id(overload_start_time) = 0;
       - script.stop: led_blink
       - light.turn_on: blue_led
-    on_turn_off:
-      - script.execute: led_blink
+    turn_off_action:
+      - lambda: |-
+          id(fault_active) = true;
+          id(relay_hw).turn_off();
+
+################################################
+#
+# LED (internal)
+#
+################################################
+
+light:
+  - platform: binary
+    id: blue_led
+    output: led_output
+    internal: true
+
+output:
+  - platform: gpio
+    id: led_output
+    pin:
+      number: GPIO6
+      inverted: true
+
+################################################
+#
+# SCRIPTS
+#
+################################################
 
 script:
   - id: led_blink
@@ -132,9 +634,114 @@ script:
     then:
       - while:
           condition:
-            switch.is_off: relay
+            lambda: 'return id(fault_active);'
           then:
             - light.turn_on: blue_led
             - delay: 500ms
             - light.turn_off: blue_led
             - delay: 500ms
+
+################################################
+#
+# ZEITSCHALTUHR - INTERVALL
+#
+################################################
+
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          // Keine Aktion wenn Fault aktiv oder Timer aus
+          if (id(fault_active)) return;
+
+          int idx = id(timer_interval).active_index().value_or(0);
+          if (idx == 0) return;
+
+          // Intervall in Millisekunden
+          uint32_t intervals[] = {0, 3600000, 7200000, 10800000, 14400000, 21600000, 28800000, 43200000, 86400000};
+          uint32_t interval_ms = intervals[idx];
+
+          // Run Duration: Index 0 = 1 min, Index 29 = 30 min
+          int run_idx = id(run_duration).active_index().value_or(4); // Default 5 min
+          uint32_t run_ms = (run_idx + 1) * 60000;
+
+          uint32_t elapsed = millis() - id(last_cycle_start);
+
+          if (id(cycle_running) && id(relay_hw).state) {
+            // Zyklus läuft - prüfe ob Laufzeit vorbei
+            if (elapsed >= run_ms) {
+              id(relay_hw).turn_off();
+              id(cycle_running) = false;
+              ESP_LOGI("timer", "Cycle ended after %u min", (unsigned int)(elapsed / 60000));
+            }
+          } else if (!id(relay_hw).state && !id(fault_active)) {
+            // Relay aus und kein Fault - prüfe ob nächster Zyklus fällig
+            if (elapsed >= interval_ms) {
+              id(last_cycle_start) = millis();
+              id(cycle_running) = true;
+              id(relay_hw).turn_on();
+              ESP_LOGI("timer", "New cycle started");
+            }
+          }
+
+################################################
+#
+# BUTTONS
+#
+################################################
+
+button:
+  - platform: restart
+    name: "Restart"
+    entity_category: config
+
+  - platform: factory_reset
+    name: "Factory Reset"
+    id: factory_reset_button
+    entity_category: config
+
+  - platform: safe_mode
+    name: "Safe Mode"
+    entity_category: config
+
+  - platform: template
+    name: "Reset Peak"
+    icon: "mdi:chart-line-variant"
+    entity_category: config
+    on_press:
+      - lambda: 'id(peak_current) = 0.0;'
+
+################################################
+#
+# TEXT SENSOREN
+#
+################################################
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      entity_category: diagnostic
+    ssid:
+      name: "Connected SSID"
+      entity_category: diagnostic
+    mac_address:
+      name: "MAC Address"
+      entity_category: diagnostic
+
+  - platform: version
+    name: "ESPHome Version"
+    entity_category: diagnostic
+
+################################################
+#
+# ZEIT
+#
+################################################
+
+time:
+  - platform: sntp
+    id: sntp_time
+    servers:
+      - 0.pool.ntp.org
+      - 1.pool.ntp.org
