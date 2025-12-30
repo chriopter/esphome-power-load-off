@@ -11,7 +11,7 @@
 
 substitutions:
   name: power-limiter
-  friendly_name: Power Limiter
+  friendly_name: Strombegrenzer
   sensor_update_interval: 10s
 
 esphome:
@@ -166,7 +166,7 @@ globals:
 
 select:
   - platform: template
-    name: "Interval"
+    name: "Intervall"
     id: timer_interval
     icon: "mdi:timer-outline"
     optimistic: true
@@ -201,7 +201,7 @@ select:
 ################################################
 
   - platform: template
-    name: "Run Duration"
+    name: "Intervalllänge"
     id: run_duration
     icon: "mdi:timelapse"
     optimistic: true
@@ -241,7 +241,7 @@ select:
 
 number:
   - platform: template
-    name: "Current Limit"
+    name: "Stromlimit"
     id: current_limit_number
     icon: "mdi:current-ac"
     unit_of_measurement: "A"
@@ -254,7 +254,7 @@ number:
     mode: box
 
   - platform: template
-    name: "Trip Delay"
+    name: "Auslöseverzögerung"
     id: trip_delay
     icon: "mdi:timer-alert-outline"
     unit_of_measurement: "ms"
@@ -363,7 +363,7 @@ sensor:
 
   # Template Sensoren für HA
   - platform: template
-    name: "Current"
+    name: "Strom"
     icon: mdi:current-ac
     unit_of_measurement: "A"
     accuracy_decimals: 3
@@ -373,7 +373,7 @@ sensor:
     update_interval: ${sensor_update_interval}
 
   - platform: template
-    name: "Voltage"
+    name: "Spannung"
     icon: mdi:sine-wave
     unit_of_measurement: "V"
     accuracy_decimals: 1
@@ -381,7 +381,7 @@ sensor:
     update_interval: ${sensor_update_interval}
 
   - platform: template
-    name: "Power"
+    name: "Leistung"
     id: power_sensor
     icon: mdi:power
     unit_of_measurement: "W"
@@ -392,7 +392,7 @@ sensor:
     update_interval: ${sensor_update_interval}
 
   - platform: template
-    name: "Energy"
+    name: "Energie"
     icon: mdi:lightning-bolt
     unit_of_measurement: "kWh"
     accuracy_decimals: 3
@@ -400,7 +400,7 @@ sensor:
     update_interval: ${sensor_update_interval}
 
   - platform: template
-    name: "Total Energy"
+    name: "Energie (Gesamt)"
     id: total_energy_sensor
     unit_of_measurement: "kWh"
     device_class: "energy"
@@ -411,7 +411,7 @@ sensor:
     update_interval: ${sensor_update_interval}
 
   - platform: total_daily_energy
-    name: "Total Daily Energy"
+    name: "Energie (Tag)"
     restore: true
     power_id: power_sensor
     unit_of_measurement: "kWh"
@@ -421,7 +421,7 @@ sensor:
       - multiply: 0.001
 
   - platform: template
-    name: "Apparent Power"
+    name: "Leistung (Schein)"
     icon: mdi:power
     unit_of_measurement: "VA"
     accuracy_decimals: 1
@@ -429,7 +429,7 @@ sensor:
     update_interval: ${sensor_update_interval}
 
   - platform: template
-    name: "Reactive Power"
+    name: "Leistung (Blind)"
     icon: mdi:flash
     unit_of_measurement: "var"
     accuracy_decimals: 1
@@ -437,14 +437,14 @@ sensor:
     update_interval: ${sensor_update_interval}
 
   - platform: template
-    name: "Power Factor"
+    name: "Leistung (Faktor)"
     icon: mdi:percent-outline
     accuracy_decimals: 2
     lambda: 'return id(power_factor_raw).state;'
     update_interval: ${sensor_update_interval}
 
   - platform: template
-    name: "Peak Current"
+    name: "Strom (Spitze)"
     id: peak_current_sensor
     unit_of_measurement: "A"
     icon: "mdi:chart-line-variant"
@@ -454,7 +454,7 @@ sensor:
 
   # Timer-Status Sensoren
   - platform: template
-    name: "Minutes Since Last Cycle"
+    name: "Zyklus (seit letztem)"
     id: minutes_since_cycle
     icon: "mdi:timer-sand"
     unit_of_measurement: "min"
@@ -468,7 +468,7 @@ sensor:
     update_interval: 10s
 
   - platform: template
-    name: "Minutes Until Next Cycle"
+    name: "Zyklus (bis nächster)"
     id: minutes_until_cycle
     icon: "mdi:timer-sand-complete"
     unit_of_measurement: "min"
@@ -504,7 +504,7 @@ sensor:
     update_interval: 10s
 
   - platform: template
-    name: "Cycle Time Remaining"
+    name: "Zyklus (verbleibend)"
     id: cycle_time_remaining
     icon: "mdi:timer-outline"
     unit_of_measurement: "min"
@@ -528,11 +528,11 @@ sensor:
     update_interval: 10s
 
   - platform: uptime
-    name: "Uptime"
+    name: "Betriebszeit"
     entity_category: diagnostic
 
   - platform: wifi_signal
-    name: "WiFi Signal"
+    name: "WLAN-Signal"
     update_interval: 60s
     entity_category: diagnostic
 
@@ -548,7 +548,7 @@ binary_sensor:
     entity_category: diagnostic
 
   - platform: template
-    name: "Fault"
+    name: "Störung"
     id: fault_sensor
     device_class: problem
     lambda: 'return id(fault_active);'
@@ -558,7 +558,7 @@ binary_sensor:
       number: GPIO3
       mode: INPUT_PULLUP
       inverted: true
-    name: "Button"
+    name: "Taste"
     id: power_button
     disabled_by_default: true
     on_multi_click:
@@ -595,7 +595,7 @@ binary_sensor:
 
 switch:
   - platform: template
-    name: "Power"
+    name: "Schalter"
     id: relay_control
     icon: mdi:power-socket-eu
     lambda: 'return id(relay_hw).state;'
@@ -609,7 +609,7 @@ switch:
       - switch.turn_off: relay_hw
 
   - platform: template
-    name: "Start Cycle After Boot"
+    name: "Zyklus nach Boot starten"
     id: start_after_boot
     icon: "mdi:power-plug"
     entity_category: config
@@ -746,20 +746,20 @@ interval:
 
 button:
   - platform: restart
-    name: "Restart"
+    name: "Neustart"
     entity_category: config
 
   - platform: factory_reset
-    name: "Factory Reset"
+    name: "Werksreset"
     id: factory_reset_button
     entity_category: config
 
   - platform: safe_mode
-    name: "Safe Mode"
+    name: "Sicherheitsmodus"
     entity_category: config
 
   - platform: template
-    name: "Reset Peak"
+    name: "Spitzenwert zurücksetzen"
     icon: "mdi:chart-line-variant"
     entity_category: config
     on_press:
@@ -774,17 +774,17 @@ button:
 text_sensor:
   - platform: wifi_info
     ip_address:
-      name: "IP Address"
+      name: "IP-Adresse"
       entity_category: diagnostic
     ssid:
-      name: "Connected SSID"
+      name: "Verbundenes WLAN"
       entity_category: diagnostic
     mac_address:
-      name: "MAC Address"
+      name: "MAC-Adresse"
       entity_category: diagnostic
 
   - platform: version
-    name: "ESPHome Version"
+    name: "ESPHome-Version"
     entity_category: diagnostic
 
 ################################################

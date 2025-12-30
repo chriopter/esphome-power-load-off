@@ -1,118 +1,81 @@
-# Power Limiter
+# Strombegrenzer
 
-ESPHome firmware for Athom Smart Plug V3 with current-based power limiting and interval timer.
+ESPHome für Athom Smart Plug V3 mit Strombegrenzung und Intervall-Timer.
 
-## Behavior
+## Was passiert wenn...
 
-- **Overcurrent detected:** Relay turns off after trip delay, fault state activates, blue LED blinks until manual reset
-- **Fault state:** Survives reboot - device stays in fault until manually cleared
-- **Fault reset:** Short button press or "Sicherheitsfreigabe" switch clears fault (does not auto-start relay)
-- **Short button press (no fault):** Toggles relay on/off
-- **Long button press (4s):** Factory reset
-- **Interval timer active:** Relay turns on for configured run duration, then off until next interval
-- **Manual power on/off:** Resets the interval countdown (user action = new reference point)
-- **Start After Boot enabled:** First cycle starts immediately on boot instead of waiting for interval
-- **Manual power on during fault:** Blocked until fault is cleared
-- **Blue LED solid:** System OK / ready
-- **Blue LED blinking:** Fault active (overcurrent tripped)
-- **Red LED:** Hardwired to relay state
+| Aktion | Ergebnis |
+|--------|----------|
+| **Strom > Limit** | Relais AUS, Störung aktiv, LED blinkt |
+| **Taste kurz (bei Störung)** | Störung zurücksetzen, LED dauerhaft |
+| **Taste kurz (normal)** | Relais toggeln |
+| **Taste lang (4s)** | Werksreset |
+| **Schalter EIN (bei Störung)** | Blockiert |
+| **Schalter EIN (normal)** | Relais EIN |
+| **Neustart (bei Störung)** | Störung bleibt, LED blinkt |
+| **Neustart (normal)** | Relais bleibt AUS |
+| **Intervall aktiv** | Relais EIN für Intervalllänge, dann AUS bis nächstes Intervall |
+| **Manuelles EIN/AUS** | Setzt Intervall-Countdown zurück |
+
+## LED
+
+| Zustand | Bedeutung |
+|---------|-----------|
+| **Dauerhaft blau** | Bereit / Sicherheitsfreigabe erteilt |
+| **Blinkend blau** | Störung aktiv |
+| **Rot** | Relais EIN (Hardware-verkabelt) |
+
+## Einstellungen
+
+| Entität | Beschreibung | Standard |
+|---------|--------------|----------|
+| Stromlimit | Auslöseschwelle | 10 A |
+| Auslöseverzögerung | Zeit über Limit bis Auslösung | 200 ms |
+| Intervall | Timer-Intervall (Aus, 1h-24h) | Aus |
+| Intervalllänge | Laufzeit pro Zyklus | 5 min |
 
 ## Details
 
 <details>
-<summary><strong>Konfiguration</strong></summary>
+<summary><strong>Alle Entitäten</strong></summary>
 
-```yaml
-substitutions:
-  name: "power-limiter"
-  friendly_name: "Power Limiter"
-  sensor_update_interval: 10s
-```
+**Steuerung**
+- Schalter
+- Sicherheitsfreigabe
+- Zyklus nach Boot starten
+- Intervall
+- Intervalllänge
+- Stromlimit
+- Auslöseverzögerung
 
-Einstellbar via Home Assistant:
-- **Current Limit:** 0-16A (Standard: 10A)
-- **Trip Delay:** 0-5000ms (Standard: 200ms)
-- **Interval:** Aus, 1h-24h
-- **Run Duration:** 1-30 min (Standard: 5 min)
+**Messwerte**
+- Strom / Strom (Spitze)
+- Spannung
+- Leistung / Leistung (Schein) / Leistung (Blind) / Leistung (Faktor)
+- Energie / Energie (Gesamt) / Energie (Tag)
+- Zyklus (verbleibend) / Zyklus (seit letztem) / Zyklus (bis nächster)
+
+**System**
+- Status / Störung
+- Betriebszeit / WLAN-Signal
+- IP-Adresse / MAC-Adresse / Verbundenes WLAN
+- ESPHome-Version
+- Neustart / Werksreset / Sicherheitsmodus / Spitzenwert zurücksetzen
 
 </details>
 
 <details>
 <summary><strong>Hardware</strong></summary>
 
-Athom Smart Plug V3 (ESP32-C3):
+Athom Smart Plug V3 (ESP32-C3)
 
 | GPIO | Funktion |
 |------|----------|
-| 3 | Taster |
+| 3 | Taste |
 | 5 | Relais |
 | 6 | Blaue LED |
 | 20 | CSE7766 RX |
 
-Rote LED ist hardwired mit Relais.
-
-**Flash-Persistenz** (überleben Neustart):
-
-| Wert | Beschreibung |
-|------|--------------|
-| `fault_active` | Fault-Status |
-| `current_limit` | Schwelle in Ampere |
-| `trip_delay` | Verzögerung in ms |
-| `timer_interval` | Intervall-Einstellung |
-| `run_duration` | Laufzeit-Einstellung |
-| `start_after_boot_flag` | Sofortstart nach Boot |
-| `total_energy` | Kumulierte kWh |
-
-</details>
-
-<details>
-<summary><strong>Entitäten</strong></summary>
-
-**Steuerung**
-
-| Entität | Beschreibung |
-|---------|--------------|
-| Power | Relais ein/aus (blockiert bei Fault) |
-| Sicherheitsfreigabe | Fault zurücksetzen / manuell sperren |
-| Start Cycle After Boot | Sofortstart wenn Timer aktiv |
-| Interval | Timer-Intervall (Aus, 1h-24h) |
-| Run Duration | Laufzeit pro Zyklus (1-30 min) |
-| Current Limit | Auslöseschwelle 0-16A |
-| Trip Delay | Verzögerung vor Auslösung 0-5000ms |
-
-**Messwerte**
-
-| Entität | Beschreibung |
-|---------|--------------|
-| Current | Stromstärke (A) |
-| Voltage | Spannung (V) |
-| Power | Leistung (W) |
-| Energy | Sitzungs-kWh |
-| Total Energy | Gesamt-kWh (persistent) |
-| Total Daily Energy | Tages-kWh |
-| Power Factor | Leistungsfaktor |
-| Apparent Power | Scheinleistung (VA) |
-| Reactive Power | Blindleistung (var) |
-| Peak Current | Höchster gemessener Strom |
-| Minutes Since Last Cycle | Zeit seit letztem Zyklusstart |
-| Minutes Until Next Cycle | Zeit bis nächster Zyklus |
-| Cycle Time Remaining | Verbleibende Laufzeit im aktuellen Zyklus |
-
-**System**
-
-| Entität | Beschreibung |
-|---------|--------------|
-| Status | Online-Status |
-| Fault | Problem-Anzeige bei Overcurrent (device_class: problem) |
-| Uptime | Betriebszeit |
-| WiFi Signal | Signalstärke |
-| IP Address | Netzwerk-IP |
-| MAC Address | Geräte-MAC |
-| Connected SSID | WiFi-Netzwerk |
-| ESPHome Version | Firmware-Version |
-| Restart | Gerät neustarten |
-| Factory Reset | Werkseinstellungen |
-| Safe Mode | OTA-Wiederherstellung |
-| Reset Peak | Peak Current zurücksetzen |
+**Persistiert** (überlebt Neustart): Störung, Stromlimit, Auslöseverzögerung, Intervall, Intervalllänge, Zyklus nach Boot, Energie (Gesamt)
 
 </details>
