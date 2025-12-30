@@ -4,23 +4,25 @@ ESPHome für Athom Smart Plug V3 mit Strombegrenzung und Intervall-Timer.
 
 ## Anleitung
 
+> **Taste** = Knopf am Gerät · **"Name"** = Entität in Home Assistant
+
 **LED blinkt blau** → Störung
 - Taste drücken → zurücksetzen
-- "Sicherheitsfreigabe" einschalten → zurücksetzen
-- "Schalter" einschalten → blockiert
+- "Sicherheitsfreigabe" EIN → zurücksetzen
+- "Schalter" EIN → blockiert
 
 **LED dauerhaft blau** → Aus
-- Taste drücken → einschalten
-- "Schalter" einschalten → einschalten
-- Timer → schaltet automatisch ein
+- Taste drücken → ein
+- "Schalter" EIN → ein
+- Timer → automatisch ein
 
 **LED blau + rot** → An
-- Taste drücken → ausschalten
-- "Schalter" ausschalten → ausschalten
-- Timer → schaltet automatisch aus
+- Taste drücken → aus
+- "Schalter" AUS → aus
+- Timer → automatisch aus
 - Überstrom → Störung
 
-**Taste 4s halten** → Werksreset (immer)
+**Taste 4s halten** → Werksreset
 
 ## Einstellungen
 
