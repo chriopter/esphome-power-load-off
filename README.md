@@ -5,11 +5,14 @@ ESPHome firmware for Athom Smart Plug V3 with current-based power limiting and i
 ## Behavior
 
 - **Overcurrent detected:** Relay turns off after trip delay, fault state activates, blue LED blinks until manual reset
-- **Fault reset:** Short button press or "Sicherheitsfreigabe" switch clears fault and starts a new cycle
+- **Fault state:** Survives reboot - device stays in fault until manually cleared
+- **Fault reset:** Short button press or "Sicherheitsfreigabe" switch clears fault (does not auto-start relay)
+- **Short button press (no fault):** Toggles relay on/off
+- **Long button press (4s):** Factory reset
 - **Interval timer active:** Relay turns on for configured run duration, then off until next interval
+- **Manual power on/off:** Resets the interval countdown (user action = new reference point)
 - **Start After Boot enabled:** First cycle starts immediately on boot instead of waiting for interval
 - **Manual power on during fault:** Blocked until fault is cleared
-- **Long button press (4s):** Factory reset
 - **Blue LED solid:** System OK / ready
 - **Blue LED blinking:** Fault active (overcurrent tripped)
 - **Red LED:** Hardwired to relay state
@@ -52,6 +55,7 @@ Rote LED ist hardwired mit Relais.
 
 | Wert | Beschreibung |
 |------|--------------|
+| `fault_active` | Fault-Status |
 | `current_limit` | Schwelle in Ampere |
 | `trip_delay` | Verzögerung in ms |
 | `timer_interval` | Intervall-Einstellung |
@@ -92,12 +96,14 @@ Rote LED ist hardwired mit Relais.
 | Peak Current | Höchster gemessener Strom |
 | Minutes Since Last Cycle | Zeit seit letztem Zyklusstart |
 | Minutes Until Next Cycle | Zeit bis nächster Zyklus |
+| Cycle Time Remaining | Verbleibende Laufzeit im aktuellen Zyklus |
 
 **System**
 
 | Entität | Beschreibung |
 |---------|--------------|
 | Status | Online-Status |
+| Fault | Problem-Anzeige bei Overcurrent (device_class: problem) |
 | Uptime | Betriebszeit |
 | WiFi Signal | Signalstärke |
 | IP Address | Netzwerk-IP |

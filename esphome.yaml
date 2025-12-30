@@ -25,9 +25,8 @@ esphome:
   on_boot:
     - priority: 600
       then:
-        # Reset Timer-Variablen
+        # Reset Timer-Variablen (fault_active wird aus Flash wiederhergestellt)
         - lambda: |-
-            id(fault_active) = false;
             id(overload_start_time) = 0;
             id(last_cycle_start) = millis();
             id(cycle_running) = false;
@@ -40,8 +39,12 @@ esphome:
               - light.turn_off: blue_led
               - delay: 100ms
         - delay: 200ms
-        # Starte ersten Zyklus wenn Intervall aktiv
+        # Prüfe Fault-Status und starte ggf. Zyklus
         - lambda: |-
+            if (id(fault_active)) {
+              // Fault aus vorherigem Lauf - LED blinken lassen
+              return;
+            }
             int idx = id(timer_interval).active_index().value_or(0);
             if (idx > 0 && id(start_after_boot_flag)) {
               // Zeitschaltuhr aktiv + Start After Boot = sofort starten
@@ -53,8 +56,14 @@ esphome:
               id(last_cycle_start) = millis();
               id(cycle_running) = false;
             }
-        # Blau an = freigegeben
-        - light.turn_on: blue_led
+        # LED-Status setzen
+        - if:
+            condition:
+              lambda: 'return id(fault_active);'
+            then:
+              - script.execute: led_blink
+            else:
+              - light.turn_on: blue_led
 
 esp32:
   board: esp32-c3-devkitm-1
@@ -107,7 +116,7 @@ globals:
   # Sicherheit
   - id: fault_active
     type: bool
-    restore_value: no
+    restore_value: yes
     initial_value: 'false'
 
   - id: overload_start_time
@@ -324,9 +333,20 @@ sensor:
       on_value:
         then:
           - lambda: |-
-              static float previous_energy_value = 0.0;
+              static float previous_energy_value = -1.0;
               float current_energy_value = x * 0.001;
-              id(total_energy) += current_energy_value - previous_energy_value;
+
+              // Erste Messung nach Boot - nur initialisieren
+              if (previous_energy_value < 0) {
+                previous_energy_value = current_energy_value;
+                return;
+              }
+
+              // Nur positive Deltas addieren, mit Sanity-Check
+              float delta = current_energy_value - previous_energy_value;
+              if (delta > 0 && delta < 1.0) {
+                id(total_energy) += delta;
+              }
               previous_energy_value = current_energy_value;
 
     apparent_power:
@@ -459,9 +479,9 @@ sensor:
         return NAN;
       }
 
-      // Intervall in Minuten
-      int intervals[] = {0, 60, 120, 180, 240, 360, 480, 720, 1440};
-      int interval_min = intervals[idx];
+      // Intervall in Minuten (must match interval timer array)
+      static const int intervals_min[] = {0, 60, 120, 180, 240, 360, 480, 720, 1440};
+      int interval_min = intervals_min[idx];
 
       // Run Duration: Index + 1 = Minuten
       int run_idx = id(run_duration).active_index().value_or(4);
@@ -481,6 +501,30 @@ sensor:
         return 0;
       }
       return interval_min - elapsed_min;
+    update_interval: 10s
+
+  - platform: template
+    name: "Cycle Time Remaining"
+    id: cycle_time_remaining
+    icon: "mdi:timer-outline"
+    unit_of_measurement: "min"
+    accuracy_decimals: 0
+    lambda: |-
+      // Nur anzeigen wenn Zyklus läuft
+      if (!id(cycle_running) || !id(relay_hw).state) {
+        return NAN;
+      }
+
+      int run_idx = id(run_duration).active_index().value_or(4);
+      int run_min = run_idx + 1;
+
+      uint32_t elapsed_ms = millis() - id(last_cycle_start);
+      uint32_t elapsed_min = elapsed_ms / 60000;
+
+      if (elapsed_min >= run_min) {
+        return 0;
+      }
+      return run_min - elapsed_min;
     update_interval: 10s
 
   - platform: uptime
@@ -503,6 +547,12 @@ binary_sensor:
     name: "Status"
     entity_category: diagnostic
 
+  - platform: template
+    name: "Fault"
+    id: fault_sensor
+    device_class: problem
+    lambda: 'return id(fault_active);'
+
   - platform: gpio
     pin:
       number: GPIO3
@@ -512,18 +562,25 @@ binary_sensor:
     id: power_button
     disabled_by_default: true
     on_multi_click:
-      # Kurz: Reset Fault + Starte Zyklus
+      # Kurz: Reset Fault ODER Toggle Relay
       - timing:
           - ON for at most 1s
           - OFF for at least 0.2s
         then:
-          - lambda: |-
-              id(fault_active) = false;
-              id(peak_current) = 0.0;
-              id(overload_start_time) = 0;
-              id(last_cycle_start) = millis();
-              id(cycle_running) = true;
-          - switch.turn_on: relay_hw
+          - if:
+              condition:
+                lambda: 'return id(fault_active);'
+              then:
+                # Fault aktiv - nur zurücksetzen, nicht einschalten
+                - lambda: |-
+                    id(fault_active) = false;
+                    id(peak_current) = 0.0;
+                    id(overload_start_time) = 0;
+                - script.stop: led_blink
+                - light.turn_on: blue_led
+              else:
+                # Kein Fault - Relay togglen
+                - switch.toggle: relay_hw
       # Lang 4s: Factory Reset
       - timing:
           - ON for at least 4s
@@ -654,9 +711,9 @@ interval:
           int idx = id(timer_interval).active_index().value_or(0);
           if (idx == 0) return;
 
-          // Intervall in Millisekunden
-          uint32_t intervals[] = {0, 3600000, 7200000, 10800000, 14400000, 21600000, 28800000, 43200000, 86400000};
-          uint32_t interval_ms = intervals[idx];
+          // Intervall in Minuten (single source of truth)
+          static const int intervals_min[] = {0, 60, 120, 180, 240, 360, 480, 720, 1440};
+          uint32_t interval_ms = (uint32_t)intervals_min[idx] * 60000;
 
           // Run Duration: Index 0 = 1 min, Index 29 = 30 min
           int run_idx = id(run_duration).active_index().value_or(4); // Default 5 min
