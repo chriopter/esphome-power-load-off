@@ -2,43 +2,25 @@
 
 ESPHome für Athom Smart Plug V3 mit Strombegrenzung und Intervall-Timer.
 
-## Zustände
+## Anleitung
 
-### Störung
-LED blinkt blau
+**LED blinkt blau** → Störung
+- Taste drücken → zurücksetzen
+- "Sicherheitsfreigabe" einschalten → zurücksetzen
+- "Schalter" einschalten → blockiert
 
-| Eingabe | Aktion | Nächster Zustand |
-|---------|--------|------------------|
-| Taste | Kurz drücken | → Bereit |
-| HA | Schalter EIN | Blockiert |
-| HA | Sicherheitsfreigabe EIN | → Bereit |
-| — | Neustart | Bleibt Störung |
+**LED dauerhaft blau** → Aus
+- Taste drücken → einschalten
+- "Schalter" einschalten → einschalten
+- Timer → schaltet automatisch ein
 
-### Bereit
-LED dauerhaft blau, Relais AUS
+**LED blau + rot** → An
+- Taste drücken → ausschalten
+- "Schalter" ausschalten → ausschalten
+- Timer → schaltet automatisch aus
+- Überstrom → Störung
 
-| Eingabe | Aktion | Nächster Zustand |
-|---------|--------|------------------|
-| Taste | Kurz drücken | → An |
-| HA | Schalter EIN | → An |
-| HA | Sicherheitsfreigabe AUS | → Störung |
-| Timer | Intervall erreicht | → An |
-
-### An
-LED dauerhaft blau + rot, Relais AN
-
-| Eingabe | Aktion | Nächster Zustand |
-|---------|--------|------------------|
-| Sensor | Strom > Limit | → Störung |
-| Taste | Kurz drücken | → Bereit |
-| HA | Schalter AUS | → Bereit |
-| Timer | Intervalllänge abgelaufen | → Bereit |
-
-## Allgemein
-
-| Eingabe | Aktion | Ergebnis |
-|---------|--------|----------|
-| Taste | Lang drücken (4s) | Werksreset |
+**Taste 4s halten** → Werksreset (immer)
 
 ## Einstellungen
 
