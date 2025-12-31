@@ -162,6 +162,8 @@ select:
     restore_value: true
     options:
       - "Aus"
+      - "1 min"
+      - "10 min"
       - "1h"
       - "2h"
       - "3h"
@@ -179,7 +181,7 @@ select:
               auto time = id(sntp_time).now();
               if (time.is_valid()) {
                 // Mit SNTP: ersten Zyklus auf nächste volle Stunde planen
-                static const int intervals_min[] = {0, 60, 120, 180, 240, 360, 480, 720, 1440};
+                static const int intervals_min[] = {0, 1, 10, 60, 120, 180, 240, 360, 480, 720, 1440};
                 int interval_sec = intervals_min[i] * 60;
                 time_t next = time.timestamp + interval_sec;
                 next = ((next / 3600) + 1) * 3600;
@@ -209,6 +211,7 @@ select:
     optimistic: true
     restore_value: true
     options:
+      - "30 sek"
       - "1 min"
       - "2 min"
       - "3 min"
@@ -467,8 +470,8 @@ sensor:
         return NAN;
       }
 
-      int run_idx = id(run_duration).active_index().value_or(4);
-      uint32_t run_sec = (run_idx + 1) * 60;
+      int run_idx = id(run_duration).active_index().value_or(5);
+      uint32_t run_sec = (run_idx == 0) ? 30 : run_idx * 60;
 
       uint32_t elapsed_sec = (millis() - id(last_cycle_start)) / 1000;
 
@@ -649,12 +652,12 @@ interval:
           int idx = id(timer_interval).active_index().value_or(0);
           if (idx == 0) return;
 
-          static const int intervals_min[] = {0, 60, 120, 180, 240, 360, 480, 720, 1440};
+          static const int intervals_min[] = {0, 1, 10, 60, 120, 180, 240, 360, 480, 720, 1440};
           int interval_sec = intervals_min[idx] * 60;
 
-          // Run Duration: Index 0 = 1 min, Index 29 = 30 min
-          int run_idx = id(run_duration).active_index().value_or(4);
-          uint32_t run_ms = (run_idx + 1) * 60000;
+          // Run Duration: Index 0 = 30 sek, Index 1+ = Minuten
+          int run_idx = id(run_duration).active_index().value_or(5);
+          uint32_t run_ms = (run_idx == 0) ? 30000 : run_idx * 60000;
 
           uint32_t elapsed = millis() - id(last_cycle_start);
 
