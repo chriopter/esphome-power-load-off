@@ -650,6 +650,16 @@ script:
 ################################################
 
 interval:
+  - interval: 10s
+    then:
+      - lambda: |-
+          // Debug alle 10s
+          int idx = id(timer_interval).active_index().value_or(0);
+          auto time = id(sntp_time).now();
+          ESP_LOGI("debug", "idx=%d sntp=%d ts=%ld fault=%d relay=%d",
+            idx, time.is_valid(), (long)id(next_cycle_timestamp),
+            id(fault_active), id(relay_hw).state);
+
   - interval: 1s
     then:
       - lambda: |-
