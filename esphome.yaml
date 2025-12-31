@@ -69,6 +69,8 @@ logger:
   baud_rate: 0
   level: INFO
 
+api:
+
 ota:
   - platform: esphome
 
