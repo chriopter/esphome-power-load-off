@@ -36,7 +36,7 @@ Relais startet immer aus. Störung und Einstellungen bleiben erhalten. Erster Zy
 | Entität | Standard |
 |---------|----------|
 | Stromlimit | 10 A |
-| Auslöseverzögerung | 200 ms |
+| Stromlimit (Verzögerung) | 200 ms |
 | Intervall | Aus |
 | Intervalllänge | 5 min |
 
@@ -46,7 +46,7 @@ Relais startet immer aus. Störung und Einstellungen bleiben erhalten. Erster Zy
 <summary><strong>Entitäten</strong></summary>
 
 - Schalter, Sicherheitsfreigabe
-- Intervall, Intervalllänge, Stromlimit, Auslöseverzögerung
+- Intervall, Intervalllänge, Stromlimit, Stromlimit (Verzögerung)
 - Strom, Strom (Spitze), Spannung
 - Leistung, Leistung (Schein), Leistung (Blind), Leistung (Faktor)
 - Energie, Energie (Gesamt), Energie (Tag)
@@ -62,6 +62,6 @@ Relais startet immer aus. Störung und Einstellungen bleiben erhalten. Erster Zy
 
 Athom Smart Plug V3 (ESP32-C3): GPIO3=Taste, GPIO5=Relais, GPIO6=LED, GPIO20=CSE7766
 
-**Persistiert:** Störung, Stromlimit, Auslöseverzögerung, Intervall, Intervalllänge, Energie (Gesamt)
+**Persistiert:** Störung, Stromlimit, Stromlimit (Verzögerung), Intervall, Intervalllänge, Energie (Gesamt)
 
 </details>

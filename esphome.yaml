@@ -243,7 +243,7 @@ number:
     mode: box
 
   - platform: template
-    name: "Auslöseverzögerung"
+    name: "Stromlimit (Verzögerung)"
     id: trip_delay
     icon: "mdi:timer-alert-outline"
     unit_of_measurement: "ms"
