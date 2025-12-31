@@ -646,9 +646,6 @@ interval:
   - interval: 1s
     then:
       - lambda: |-
-          // Keine Aktion wenn Fault aktiv oder Timer aus
-          if (id(fault_active)) return;
-
           int idx = id(timer_interval).active_index().value_or(0);
           if (idx == 0) return;
 
@@ -678,24 +675,24 @@ interval:
                 ESP_LOGI("timer", "Next cycle at %02d:00", (int)((next % 86400) / 3600));
               }
             }
-          } else if (!id(relay_hw).state && !id(fault_active)) {
+          } else if (!id(relay_hw).state) {
+            // Planung immer (auch bei Fault)
             if (has_time) {
-              // Mit SNTP: volle Stunden
               if (id(next_cycle_timestamp) == 0) {
-                // Ersten Zyklus auf nächste volle Stunde planen
                 time_t next = time.timestamp + interval_sec;
                 next = ((next / 3600) + 1) * 3600;
                 id(next_cycle_timestamp) = next;
-                ESP_LOGI("timer", "First cycle scheduled at %02d:00", (int)((next % 86400) / 3600));
+                ESP_LOGI("timer", "Cycle scheduled at %02d:00", (int)((next % 86400) / 3600));
               }
-              if (time.timestamp >= id(next_cycle_timestamp)) {
+              // Einschalten nur ohne Fault
+              if (!id(fault_active) && time.timestamp >= id(next_cycle_timestamp)) {
                 id(last_cycle_start) = millis();
                 id(cycle_running) = true;
                 id(relay_hw).turn_on();
-                ESP_LOGI("timer", "Cycle started at scheduled time");
+                ESP_LOGI("timer", "Cycle started");
               }
-            } else {
-              // Ohne SNTP: Fallback auf millis()
+            } else if (!id(fault_active)) {
+              // Ohne SNTP: Fallback auf millis() (nur ohne Fault)
               uint32_t interval_ms = (uint32_t)interval_sec * 1000;
               if (elapsed >= interval_ms) {
                 id(last_cycle_start) = millis();
@@ -759,7 +756,7 @@ text_sensor:
       char buf[6];
       snprintf(buf, sizeof(buf), "%02d:%02d", last.hour, last.minute);
       return {buf};
-    update_interval: 60s
+    update_interval: 10s
 
   - platform: template
     name: "Zyklus (nächster)"
@@ -773,7 +770,7 @@ text_sensor:
       char buf[6];
       snprintf(buf, sizeof(buf), "%02d:%02d", next.hour, next.minute);
       return {buf};
-    update_interval: 60s
+    update_interval: 10s
 
   - platform: wifi_info
     ip_address:
