@@ -147,12 +147,6 @@ globals:
     restore_value: no
     initial_value: '0.0'
 
-  # Start After Boot Flag
-  - id: start_after_boot_flag
-    type: bool
-    restore_value: yes
-    initial_value: 'false'
-
 ################################################
 #
 # ZEITSCHALTUHR - EINSTELLUNGEN
@@ -566,19 +560,13 @@ binary_sensor:
               condition:
                 lambda: 'return id(fault_active);'
               then:
-                # Fault aktiv - zurücksetzen, optional sofort starten
+                # Fault aktiv - nur zurücksetzen
                 - lambda: |-
                     id(fault_active) = false;
                     id(peak_current) = 0.0;
                     id(overload_start_time) = 0;
                 - script.stop: led_blink
-                - if:
-                    condition:
-                      lambda: 'return id(start_after_boot_flag);'
-                    then:
-                      - switch.turn_on: relay_hw
-                    else:
-                      - light.turn_on: blue_led
+                - light.turn_on: blue_led
               else:
                 # Kein Fault - Relay togglen
                 - switch.toggle: relay_hw
@@ -609,16 +597,6 @@ switch:
     turn_off_action:
       - switch.turn_off: relay_hw
 
-  - platform: template
-    name: "Zyklus nach Entstörung"
-    id: start_after_fault
-    icon: "mdi:play-circle-outline"
-    entity_category: config
-    lambda: 'return id(start_after_boot_flag);'
-    turn_on_action:
-      - lambda: 'id(start_after_boot_flag) = true;'
-    turn_off_action:
-      - lambda: 'id(start_after_boot_flag) = false;'
 
   - platform: gpio
     id: relay_hw

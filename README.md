@@ -19,7 +19,7 @@ ESPHome für Athom Smart Plug V3 mit Strombegrenzung und Intervall-Timer.
 | Relais an | kurz drücken | Relais ausschalten |
 | beliebig | 4 Sek. halten | Werksreset |
 
-*Mit "Zyklus nach Entstörung" aktiv: schaltet auch Relais ein
+*Zum Starten nach Störung: zweimal drücken
 
 ## Einstellungen
 
@@ -29,14 +29,13 @@ ESPHome für Athom Smart Plug V3 mit Strombegrenzung und Intervall-Timer.
 | Auslöseverzögerung | 200 ms |
 | Intervall | Aus |
 | Intervalllänge | 5 min |
-| Zyklus nach Entstörung | Aus |
 
 ## Details
 
 <details>
 <summary><strong>Entitäten</strong></summary>
 
-- Schalter, Sicherheitsfreigabe, Zyklus nach Entstörung
+- Schalter, Sicherheitsfreigabe
 - Intervall, Intervalllänge, Stromlimit, Auslöseverzögerung
 - Strom, Strom (Spitze), Spannung
 - Leistung, Leistung (Schein), Leistung (Blind), Leistung (Faktor)
@@ -53,6 +52,6 @@ ESPHome für Athom Smart Plug V3 mit Strombegrenzung und Intervall-Timer.
 
 Athom Smart Plug V3 (ESP32-C3): GPIO3=Taste, GPIO5=Relais, GPIO6=LED, GPIO20=CSE7766
 
-**Persistiert:** Störung, Stromlimit, Auslöseverzögerung, Intervall, Intervalllänge, Zyklus nach Entstörung, Energie (Gesamt)
+**Persistiert:** Störung, Stromlimit, Auslöseverzögerung, Intervall, Intervalllänge, Energie (Gesamt)
 
 </details>
