@@ -180,14 +180,18 @@ select:
               // Timer aktiviert
               auto time = id(sntp_time).now();
               if (time.is_valid()) {
-                // Mit SNTP: ersten Zyklus auf nächste volle Stunde planen
                 static const int intervals_min[] = {0, 1, 10, 60, 120, 180, 240, 360, 480, 720, 1440};
-                int interval_sec = intervals_min[i] * 60;
+                int interval_min = intervals_min[i];
+                int interval_sec = interval_min * 60;
                 time_t next = time.timestamp + interval_sec;
-                next = ((next / 3600) + 1) * 3600;
+                // Nur bei Stunden-Intervallen (>=60 min) auf volle Stunde runden
+                if (interval_min >= 60) {
+                  next = ((next / 3600) + 1) * 3600;
+                }
                 id(next_cycle_timestamp) = next;
+                ESP_LOGI("timer", "Scheduled at timestamp %ld", (long)next);
               } else {
-                // Ohne SNTP: millis-basiert, Planung erfolgt im Interval-Check
+                // Ohne SNTP: millis-basiert
                 id(next_cycle_timestamp) = 0;
                 id(last_cycle_start) = millis();
               }
@@ -682,10 +686,14 @@ interval:
             // Planung immer (auch bei Fault)
             if (has_time) {
               if (id(next_cycle_timestamp) == 0) {
+                int interval_min = intervals_min[idx];
                 time_t next = time.timestamp + interval_sec;
-                next = ((next / 3600) + 1) * 3600;
+                // Nur bei Stunden-Intervallen (>=60 min) auf volle Stunde runden
+                if (interval_min >= 60) {
+                  next = ((next / 3600) + 1) * 3600;
+                }
                 id(next_cycle_timestamp) = next;
-                ESP_LOGI("timer", "Cycle scheduled at %02d:00", (int)((next % 86400) / 3600));
+                ESP_LOGI("timer", "Cycle scheduled");
               }
               // Einschalten nur ohne Fault
               if (!id(fault_active) && time.timestamp >= id(next_cycle_timestamp)) {
@@ -766,14 +774,23 @@ text_sensor:
     id: next_cycle_time
     icon: "mdi:clock-end"
     lambda: |-
-      if (id(next_cycle_timestamp) == 0) {
+      int idx = id(timer_interval).active_index().value_or(0);
+      if (idx == 0) {
         return {"—"};
       }
-      auto next = ESPTime::from_epoch_local(id(next_cycle_timestamp));
+      auto time = id(sntp_time).now();
+      if (!time.is_valid()) {
+        return {"..."};  // Warte auf Zeitsync
+      }
+      time_t ts = id(next_cycle_timestamp);
+      if (ts == 0) {
+        return {"..."};  // Wird geplant
+      }
+      auto next = ESPTime::from_epoch_local(ts);
       char buf[6];
       snprintf(buf, sizeof(buf), "%02d:%02d", next.hour, next.minute);
       return {buf};
-    update_interval: 10s
+    update_interval: 1s
 
   - platform: wifi_info
     ip_address:
