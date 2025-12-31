@@ -24,7 +24,12 @@ ESPHome für Athom Smart Plug V3 mit Überstromschutz und Intervall-Timer.
 | beliebig | 4 Sek. halten | Werksreset |
 
 *Zum Starten nach Störung: zweimal drücken
+
 **Relais an für Intervalllänge
+
+## Neustart
+
+Relais startet immer aus. Störung und Einstellungen bleiben erhalten.
 
 ## Einstellungen
 
