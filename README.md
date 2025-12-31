@@ -27,7 +27,7 @@ ESPHome für Athom Smart Plug V3 mit Überstromschutz und Intervall-Timer.
 
 **Relais an für Intervalllänge
 
-## Neustart
+## Nach Stromausfall / Neustart
 
 Relais startet immer aus. Störung und Einstellungen bleiben erhalten. Erster Zyklus startet nach Intervall-Abstand.
 
