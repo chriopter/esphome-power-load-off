@@ -25,9 +25,8 @@ esphome:
   on_boot:
     - priority: 600
       then:
-        # Reset Timer-Variablen (fault_active wird aus Flash wiederhergestellt)
+        # Reset Timer-Variablen
         - lambda: |-
-            ESP_LOGI("boot", "fault_active nach restore: %s", id(fault_active) ? "true" : "false");
             id(overload_start_time) = 0;
             id(last_cycle_start) = millis();
             id(cycle_running) = false;
@@ -109,10 +108,10 @@ uart:
 ################################################
 
 globals:
-  # Sicherheit
+  # Sicherheit (wird nach Boot zurückgesetzt)
   - id: fault_active
     type: bool
-    restore_value: yes
+    restore_value: no
     initial_value: 'false'
 
   - id: overload_start_time
@@ -299,7 +298,6 @@ sensor:
                   if (elapsed >= delay_ms) {
                     ESP_LOGW("limiter", "TRIP: %.3fA > %.2fA for %ums - FAULT", x, limit, elapsed);
                     id(fault_active) = true;
-                    global_preferences->sync();
                     id(relay_hw).turn_off();
                     id(overload_start_time) = 0;
                   }
@@ -564,7 +562,6 @@ binary_sensor:
                 # Fault aktiv - nur zurücksetzen
                 - lambda: |-
                     id(fault_active) = false;
-                    global_preferences->sync();
                     id(peak_current) = 0.0;
                     id(overload_start_time) = 0;
                 - script.stop: led_blink
@@ -629,7 +626,6 @@ switch:
     turn_on_action:
       - lambda: |-
           id(fault_active) = false;
-          global_preferences->sync();
           id(peak_current) = 0.0;
           id(overload_start_time) = 0;
       - script.stop: led_blink
@@ -637,7 +633,6 @@ switch:
     turn_off_action:
       - lambda: |-
           id(fault_active) = true;
-          global_preferences->sync();
           id(relay_hw).turn_off();
 
 ################################################

@@ -16,12 +16,12 @@ ESPHome für Athom Smart Plug V3 mit Überstromschutz und Intervall-Timer.
 
 ## Taste am Gerät
 
-| Zustand | Aktion | Ergebnis |
-|---------|--------|----------|
-| Störung | kurz drücken | Störung zurücksetzen* |
-| Relais aus | kurz drücken | Zyklus starten** |
-| Relais an | kurz drücken | Relais ausschalten |
-| beliebig | 4 Sek. halten | Werksreset |
+| Zustand | LED | Aktion | Ergebnis |
+|---------|-----|--------|----------|
+| Störung | blinkt blau | kurz drücken | Störung zurücksetzen* |
+| Relais aus | dauerhaft blau | kurz drücken | Zyklus starten** |
+| Relais an | rot | kurz drücken | Relais ausschalten |
+| beliebig | - | 4 Sek. halten | Werksreset |
 
 *Zum Starten nach Störung: zweimal drücken
 
@@ -29,7 +29,7 @@ ESPHome für Athom Smart Plug V3 mit Überstromschutz und Intervall-Timer.
 
 ## Nach Stromausfall / Neustart
 
-Relais startet aus. Störung und Einstellungen bleiben erhalten. Erster Zyklus startet nach Intervall-Abstand.
+Relais startet aus, Störung wird zurückgesetzt. Einstellungen bleiben erhalten. Erster Zyklus startet nach Intervall-Abstand.
 
 ## Einstellungen
 
@@ -62,6 +62,6 @@ Relais startet aus. Störung und Einstellungen bleiben erhalten. Erster Zyklus s
 
 Athom Smart Plug V3 (ESP32-C3): GPIO3=Taste, GPIO5=Relais, GPIO6=LED, GPIO20=CSE7766
 
-**Persistiert:** Störung, Stromlimit, Stromlimit (Verzögerung), Intervall, Intervalllänge, Energie (Gesamt)
+**Persistiert:** Stromlimit, Stromlimit (Verzögerung), Intervall, Intervalllänge, Energie (Gesamt)
 
 </details>
