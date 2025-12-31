@@ -1,6 +1,6 @@
 # Strombegrenzer
 
-ESPHome für Athom Smart Plug V3 mit Strombegrenzung und Intervall-Timer.
+ESPHome für Athom Smart Plug V3 mit Überstromschutz und Intervall-Timer. Bei Überstrom schaltet das Relais ab und geht in Störung. Mit Intervall bleibt das Relais nach Einschalten nur für die eingestellte Zeit an.
 
 ## Status
 
