@@ -496,7 +496,7 @@ sensor:
     name: "Zyklus (verbleibend)"
     id: cycle_time_remaining
     icon: "mdi:timer-outline"
-    unit_of_measurement: "min"
+    unit_of_measurement: "s"
     accuracy_decimals: 0
     lambda: |-
       // Nur anzeigen wenn Zyklus läuft
@@ -505,16 +505,15 @@ sensor:
       }
 
       int run_idx = id(run_duration).active_index().value_or(4);
-      int run_min = run_idx + 1;
+      uint32_t run_sec = (run_idx + 1) * 60;
 
-      uint32_t elapsed_ms = millis() - id(last_cycle_start);
-      uint32_t elapsed_min = elapsed_ms / 60000;
+      uint32_t elapsed_sec = (millis() - id(last_cycle_start)) / 1000;
 
-      if (elapsed_min >= run_min) {
+      if (elapsed_sec >= run_sec) {
         return 0;
       }
-      return run_min - elapsed_min;
-    update_interval: 10s
+      return run_sec - elapsed_sec;
+    update_interval: 1s
 
   - platform: uptime
     name: "Betriebszeit"
