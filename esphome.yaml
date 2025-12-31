@@ -108,10 +108,10 @@ uart:
 ################################################
 
 globals:
-  # Sicherheit (restore aus Flash, Default = Störung aktiv)
+  # Sicherheit (nach Boot immer Störung aktiv - restore funktioniert nicht mit ESP-IDF)
   - id: fault_active
     type: bool
-    restore_value: yes
+    restore_value: no
     initial_value: 'true'
 
   - id: overload_start_time
