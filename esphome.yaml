@@ -39,17 +39,11 @@ esphome:
               - light.turn_off: blue_led
               - delay: 100ms
         - delay: 200ms
-        # Prüfe Fault-Status und initialisiere Timer
+        # Fault-Status prüfen (Intervall-Initialisierung erfolgt automatisch wenn SNTP sync)
         - lambda: |-
             if (id(fault_active)) {
-              // Fault aus vorherigem Lauf - LED blinken lassen
+              // Fault aktiv - LED blinken lassen
               return;
-            }
-            int idx = id(timer_interval).active_index().value_or(0);
-            if (idx > 0) {
-              // Zeitschaltuhr aktiv - warte auf erstes Intervall
-              id(last_cycle_start) = millis();
-              id(cycle_running) = false;
             }
         # LED-Status setzen
         - if:
@@ -147,6 +141,12 @@ globals:
     restore_value: no
     initial_value: '0.0'
 
+  # Nächster geplanter Zyklus (Unix-Timestamp, auf volle Stunde gerundet)
+  - id: next_cycle_timestamp
+    type: time_t
+    restore_value: no
+    initial_value: '0'
+
 ################################################
 #
 # ZEITSCHALTUHR - EINSTELLUNGEN
@@ -175,11 +175,24 @@ select:
       then:
         - lambda: |-
             if (i > 0) {
-              // Timer aktiviert - warte auf erstes Intervall
-              id(last_cycle_start) = millis();
+              // Timer aktiviert
+              auto time = id(sntp_time).now();
+              if (time.is_valid()) {
+                // Mit SNTP: ersten Zyklus auf nächste volle Stunde planen
+                static const int intervals_min[] = {0, 60, 120, 180, 240, 360, 480, 720, 1440};
+                int interval_sec = intervals_min[i] * 60;
+                time_t next = time.timestamp + interval_sec;
+                next = ((next / 3600) + 1) * 3600;
+                id(next_cycle_timestamp) = next;
+              } else {
+                // Ohne SNTP: millis-basiert, Planung erfolgt im Interval-Check
+                id(next_cycle_timestamp) = 0;
+                id(last_cycle_start) = millis();
+              }
               id(cycle_running) = false;
             } else {
               // Timer deaktiviert
+              id(next_cycle_timestamp) = 0;
               id(cycle_running) = false;
             }
 
@@ -639,30 +652,57 @@ interval:
           int idx = id(timer_interval).active_index().value_or(0);
           if (idx == 0) return;
 
-          // Intervall in Minuten (single source of truth)
           static const int intervals_min[] = {0, 60, 120, 180, 240, 360, 480, 720, 1440};
-          uint32_t interval_ms = (uint32_t)intervals_min[idx] * 60000;
+          int interval_sec = intervals_min[idx] * 60;
 
           // Run Duration: Index 0 = 1 min, Index 29 = 30 min
-          int run_idx = id(run_duration).active_index().value_or(4); // Default 5 min
+          int run_idx = id(run_duration).active_index().value_or(4);
           uint32_t run_ms = (run_idx + 1) * 60000;
 
           uint32_t elapsed = millis() - id(last_cycle_start);
+
+          auto time = id(sntp_time).now();
+          bool has_time = time.is_valid();
 
           if (id(cycle_running) && id(relay_hw).state) {
             // Zyklus läuft - prüfe ob Laufzeit vorbei
             if (elapsed >= run_ms) {
               id(relay_hw).turn_off();
               id(cycle_running) = false;
-              ESP_LOGI("timer", "Cycle ended after %u min", (unsigned int)(elapsed / 60000));
+              ESP_LOGI("timer", "Cycle ended");
+
+              if (has_time && id(next_cycle_timestamp) > 0) {
+                // Nächster Zyklus = letzter Start + Intervall (bereits runde Zeit)
+                time_t next = id(next_cycle_timestamp) + interval_sec;
+                id(next_cycle_timestamp) = next;
+                ESP_LOGI("timer", "Next cycle at %02d:00", (int)((next % 86400) / 3600));
+              }
             }
           } else if (!id(relay_hw).state && !id(fault_active)) {
-            // Relay aus und kein Fault - prüfe ob nächster Zyklus fällig
-            if (elapsed >= interval_ms) {
-              id(last_cycle_start) = millis();
-              id(cycle_running) = true;
-              id(relay_hw).turn_on();
-              ESP_LOGI("timer", "New cycle started");
+            if (has_time) {
+              // Mit SNTP: volle Stunden
+              if (id(next_cycle_timestamp) == 0) {
+                // Ersten Zyklus auf nächste volle Stunde planen
+                time_t next = time.timestamp + interval_sec;
+                next = ((next / 3600) + 1) * 3600;
+                id(next_cycle_timestamp) = next;
+                ESP_LOGI("timer", "First cycle scheduled at %02d:00", (int)((next % 86400) / 3600));
+              }
+              if (time.timestamp >= id(next_cycle_timestamp)) {
+                id(last_cycle_start) = millis();
+                id(cycle_running) = true;
+                id(relay_hw).turn_on();
+                ESP_LOGI("timer", "Cycle started at scheduled time");
+              }
+            } else {
+              // Ohne SNTP: Fallback auf millis()
+              uint32_t interval_ms = (uint32_t)interval_sec * 1000;
+              if (elapsed >= interval_ms) {
+                id(last_cycle_start) = millis();
+                id(cycle_running) = true;
+                id(relay_hw).turn_on();
+                ESP_LOGI("timer", "Cycle started (no SNTP)");
+              }
             }
           }
 
@@ -726,24 +766,10 @@ text_sensor:
     id: next_cycle_time
     icon: "mdi:clock-end"
     lambda: |-
-      int idx = id(timer_interval).active_index().value_or(0);
-      if (idx == 0) {
+      if (id(next_cycle_timestamp) == 0) {
         return {"—"};
       }
-      auto time = id(sntp_time).now();
-      if (!time.is_valid()) {
-        return {"—"};
-      }
-      // Intervall in Minuten
-      static const int intervals_min[] = {0, 60, 120, 180, 240, 360, 480, 720, 1440};
-      int interval_sec = intervals_min[idx] * 60;
-
-      uint32_t elapsed_sec = (millis() - id(last_cycle_start)) / 1000;
-      int remaining_sec = interval_sec - elapsed_sec;
-      if (remaining_sec < 0) remaining_sec = 0;
-
-      time_t next_time = time.timestamp + remaining_sec;
-      auto next = ESPTime::from_epoch_local(next_time);
+      auto next = ESPTime::from_epoch_local(id(next_cycle_timestamp));
       char buf[6];
       snprintf(buf, sizeof(buf), "%02d:%02d", next.hour, next.minute);
       return {buf};
