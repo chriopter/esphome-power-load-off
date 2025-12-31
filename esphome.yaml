@@ -485,6 +485,36 @@ sensor:
       return run_sec - elapsed_sec;
     update_interval: 1s
 
+  - platform: template
+    name: "Zyklus (nächster, Countdown)"
+    id: next_cycle_countdown
+    icon: "mdi:timer-sand"
+    unit_of_measurement: "min"
+    accuracy_decimals: 0
+    lambda: |-
+      int idx = id(timer_interval).active_index().value_or(0);
+      if (idx == 0) return NAN;  // Timer aus
+      if (id(relay_hw).state) return NAN;  // Zyklus läuft gerade
+
+      static const int intervals_min[] = {0, 1, 10, 60, 120, 180, 240, 360, 480, 720, 1440};
+      int interval_sec = intervals_min[idx] * 60;
+
+      auto time = id(sntp_time).now();
+      if (time.is_valid() && id(next_cycle_timestamp) > 0) {
+        // Mit Uhrzeit: exakte Berechnung
+        int remaining_sec = id(next_cycle_timestamp) - time.timestamp;
+        if (remaining_sec < 0) return 0;
+        return (remaining_sec + 30) / 60;  // Auf Minuten runden
+      } else {
+        // Ohne Uhrzeit: millis-basiert
+        uint32_t elapsed_ms = millis() - id(last_cycle_start);
+        uint32_t interval_ms = (uint32_t)interval_sec * 1000;
+        if (elapsed_ms >= interval_ms) return 0;
+        uint32_t remaining_ms = interval_ms - elapsed_ms;
+        return (remaining_ms + 30000) / 60000;  // Auf Minuten runden
+      }
+    update_interval: 10s
+
   - platform: uptime
     name: "Betriebszeit"
     entity_category: diagnostic
@@ -824,8 +854,9 @@ text_sensor:
 ################################################
 
 time:
-  - platform: sntp
+  - platform: homeassistant
     id: sntp_time
+  - platform: sntp
     servers:
       - 0.pool.ntp.org
       - 1.pool.ntp.org
