@@ -39,20 +39,15 @@ esphome:
               - light.turn_off: blue_led
               - delay: 100ms
         - delay: 200ms
-        # Prüfe Fault-Status und starte ggf. Zyklus
+        # Prüfe Fault-Status und initialisiere Timer
         - lambda: |-
             if (id(fault_active)) {
               // Fault aus vorherigem Lauf - LED blinken lassen
               return;
             }
             int idx = id(timer_interval).active_index().value_or(0);
-            if (idx > 0 && id(start_after_boot_flag)) {
-              // Zeitschaltuhr aktiv + Start After Boot = sofort starten
-              id(last_cycle_start) = millis();
-              id(cycle_running) = true;
-              id(relay_hw).turn_on();
-            } else if (idx > 0) {
-              // Zeitschaltuhr aktiv - warte auf Intervall
+            if (idx > 0) {
+              // Zeitschaltuhr aktiv - warte auf erstes Intervall
               id(last_cycle_start) = millis();
               id(cycle_running) = false;
             }
@@ -571,13 +566,19 @@ binary_sensor:
               condition:
                 lambda: 'return id(fault_active);'
               then:
-                # Fault aktiv - nur zurücksetzen, nicht einschalten
+                # Fault aktiv - zurücksetzen, optional sofort starten
                 - lambda: |-
                     id(fault_active) = false;
                     id(peak_current) = 0.0;
                     id(overload_start_time) = 0;
                 - script.stop: led_blink
-                - light.turn_on: blue_led
+                - if:
+                    condition:
+                      lambda: 'return id(start_after_boot_flag);'
+                    then:
+                      - switch.turn_on: relay_hw
+                    else:
+                      - light.turn_on: blue_led
               else:
                 # Kein Fault - Relay togglen
                 - switch.toggle: relay_hw
@@ -609,9 +610,9 @@ switch:
       - switch.turn_off: relay_hw
 
   - platform: template
-    name: "Zyklus nach Boot starten"
-    id: start_after_boot
-    icon: "mdi:power-plug"
+    name: "Zyklus nach Entstörung"
+    id: start_after_fault
+    icon: "mdi:play-circle-outline"
     entity_category: config
     lambda: 'return id(start_after_boot_flag);'
     turn_on_action:
