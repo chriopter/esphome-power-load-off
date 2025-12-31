@@ -25,7 +25,7 @@ esphome:
   on_boot:
     - priority: 600
       then:
-        # Reset Timer-Variablen
+        # Reset Timer-Variablen (fault_active bleibt true = sicher)
         - lambda: |-
             id(overload_start_time) = 0;
             id(last_cycle_start) = millis();
@@ -108,11 +108,11 @@ uart:
 ################################################
 
 globals:
-  # Sicherheit (wird nach Boot zurückgesetzt)
+  # Sicherheit (restore aus Flash, Default = Störung aktiv)
   - id: fault_active
     type: bool
-    restore_value: no
-    initial_value: 'false'
+    restore_value: yes
+    initial_value: 'true'
 
   - id: overload_start_time
     type: uint32_t
