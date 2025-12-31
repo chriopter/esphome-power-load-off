@@ -625,7 +625,7 @@ switch:
     restore_mode: RESTORE_DEFAULT_OFF
     internal: true
     on_turn_on:
-      - light.turn_on: blue_led
+      - light.turn_off: blue_led
       - lambda: |-
           id(overload_start_time) = 0;
           id(last_cycle_start) = millis();
