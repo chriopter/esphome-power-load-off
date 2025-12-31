@@ -31,6 +31,12 @@ ESPHome für Athom Smart Plug V3 mit Überstromschutz und Intervall-Timer.
 
 Relais startet aus, Störung ist aktiv (Sicherheitsfreigabe erforderlich). Einstellungen bleiben erhalten. Erster Zyklus startet nach Intervall-Abstand.
 
+## Sicherheitsfreigabe
+
+Bei Störung zurücksetzen wird das Intervall neu geplant. Das Relais schaltet **nicht** sofort ein, auch wenn der geplante Zeitpunkt bereits verstrichen ist.
+
+Beispiel: Zyklus war für 12:00 geplant, Störung wurde um 12:30 zurückgesetzt → nächster Zyklus wird für 13:00 geplant (bei 1h Intervall).
+
 ## Einstellungen
 
 | Entität | Standard |
@@ -50,7 +56,7 @@ Relais startet aus, Störung ist aktiv (Sicherheitsfreigabe erforderlich). Einst
 - Strom, Strom (Spitze), Spannung
 - Leistung, Leistung (Schein), Leistung (Blind), Leistung (Faktor)
 - Energie, Energie (Gesamt), Energie (Tag)
-- Zyklus (verbleibend), Zyklus (letzter), Zyklus (nächster)
+- Zyklus (verbleibend), Zyklus (letzter), Zyklus (nächster), Zyklus (nächster, Countdown)
 - Status, Störung, Betriebszeit, WLAN-Signal
 - IP-Adresse, MAC-Adresse, Verbundenes WLAN, ESPHome-Version
 - Neustart, Werksreset, Sicherheitsmodus, Spitzenwert zurücksetzen
