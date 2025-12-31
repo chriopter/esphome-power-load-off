@@ -50,7 +50,7 @@ Relais startet aus, Störung ist aktiv (Sicherheitsfreigabe erforderlich). Einst
 - Strom, Strom (Spitze), Spannung
 - Leistung, Leistung (Schein), Leistung (Blind), Leistung (Faktor)
 - Energie, Energie (Gesamt), Energie (Tag)
-- Zyklus (verbleibend), Zyklus (seit letztem), Zyklus (bis nächster)
+- Zyklus (verbleibend), Zyklus (letzter), Zyklus (nächster)
 - Status, Störung, Betriebszeit, WLAN-Signal
 - IP-Adresse, MAC-Adresse, Verbundenes WLAN, ESPHome-Version
 - Neustart, Werksreset, Sicherheitsmodus, Spitzenwert zurücksetzen

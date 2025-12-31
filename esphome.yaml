@@ -441,56 +441,6 @@ sensor:
     lambda: 'return id(peak_current);'
     update_interval: 1s
 
-  # Timer-Status Sensoren
-  - platform: template
-    name: "Zyklus (seit letztem)"
-    id: minutes_since_cycle
-    icon: "mdi:timer-sand"
-    unit_of_measurement: "min"
-    accuracy_decimals: 0
-    lambda: |-
-      if (id(timer_interval).active_index().value_or(0) == 0) {
-        return NAN;
-      }
-      uint32_t elapsed = millis() - id(last_cycle_start);
-      return elapsed / 60000.0;
-    update_interval: 10s
-
-  - platform: template
-    name: "Zyklus (bis nächster)"
-    id: minutes_until_cycle
-    icon: "mdi:timer-sand-complete"
-    unit_of_measurement: "min"
-    accuracy_decimals: 0
-    lambda: |-
-      int idx = id(timer_interval).active_index().value_or(0);
-      if (idx == 0) {
-        return NAN;
-      }
-
-      // Intervall in Minuten (must match interval timer array)
-      static const int intervals_min[] = {0, 60, 120, 180, 240, 360, 480, 720, 1440};
-      int interval_min = intervals_min[idx];
-
-      // Run Duration: Index + 1 = Minuten
-      int run_idx = id(run_duration).active_index().value_or(4);
-      int run_min = run_idx + 1;
-
-      uint32_t elapsed_ms = millis() - id(last_cycle_start);
-      uint32_t elapsed_min = elapsed_ms / 60000;
-
-      if (id(cycle_running) && id(relay_hw).state) {
-        // Gerade im Zyklus - zeige Zeit bis Ende + Intervall
-        if (elapsed_min < run_min) {
-          return interval_min + (run_min - elapsed_min);
-        }
-      }
-
-      if (elapsed_min >= interval_min) {
-        return 0;
-      }
-      return interval_min - elapsed_min;
-    update_interval: 10s
 
   - platform: template
     name: "Zyklus (verbleibend)"
@@ -750,6 +700,55 @@ button:
 ################################################
 
 text_sensor:
+  - platform: template
+    name: "Zyklus (letzter)"
+    id: last_cycle_time
+    icon: "mdi:clock-start"
+    lambda: |-
+      if (id(timer_interval).active_index().value_or(0) == 0) {
+        return {"—"};
+      }
+      auto time = id(sntp_time).now();
+      if (!time.is_valid()) {
+        return {"—"};
+      }
+      // Berechne Uhrzeit des letzten Zyklus
+      uint32_t elapsed_sec = (millis() - id(last_cycle_start)) / 1000;
+      time_t last_time = time.timestamp - elapsed_sec;
+      auto last = ESPTime::from_epoch_local(last_time);
+      char buf[6];
+      snprintf(buf, sizeof(buf), "%02d:%02d", last.hour, last.minute);
+      return {buf};
+    update_interval: 60s
+
+  - platform: template
+    name: "Zyklus (nächster)"
+    id: next_cycle_time
+    icon: "mdi:clock-end"
+    lambda: |-
+      int idx = id(timer_interval).active_index().value_or(0);
+      if (idx == 0) {
+        return {"—"};
+      }
+      auto time = id(sntp_time).now();
+      if (!time.is_valid()) {
+        return {"—"};
+      }
+      // Intervall in Minuten
+      static const int intervals_min[] = {0, 60, 120, 180, 240, 360, 480, 720, 1440};
+      int interval_sec = intervals_min[idx] * 60;
+
+      uint32_t elapsed_sec = (millis() - id(last_cycle_start)) / 1000;
+      int remaining_sec = interval_sec - elapsed_sec;
+      if (remaining_sec < 0) remaining_sec = 0;
+
+      time_t next_time = time.timestamp + remaining_sec;
+      auto next = ESPTime::from_epoch_local(next_time);
+      char buf[6];
+      snprintf(buf, sizeof(buf), "%02d:%02d", next.hour, next.minute);
+      return {buf};
+    update_interval: 60s
+
   - platform: wifi_info
     ip_address:
       name: "IP-Adresse"
