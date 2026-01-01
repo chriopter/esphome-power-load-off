@@ -77,4 +77,6 @@ Athom Smart Plug V3 (ESP32-C3): GPIO3=Taste, GPIO5=Relais, GPIO6=LED, GPIO20=CSE
 
 - Manuelles Einschalten direkt nach Sicherheitsfreigabe (< 1 Sek.) kann Zeitplan zurücksetzen. Workaround: kurz warten oder Relay automatisch starten lassen. *Technisch: `safety_release` setzt `next_cycle_timestamp = 0` (Safety-Feature gegen verpasste Zyklen). Interval-Handler plant neu, aber erst nach 1s. Fix: In `on_turn_on` prüfen ob `next_cycle_timestamp == 0` und ggf. sofort planen.*
 
+- Fallback-AP ist offen (kein Passwort). Bei WiFi-Ausfall erstellt das Gerät einen offenen Hotspot mit Captive Portal (OTA-Upload, WiFi-Config). Für mehr Sicherheit: `ap: { password: "..." }` setzen.
+
 </details>
