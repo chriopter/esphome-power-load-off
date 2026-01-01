@@ -566,9 +566,6 @@ binary_sensor:
                     id(fault_active) = false;
                     id(peak_current) = 0.0;
                     id(overload_start_time) = 0;
-                    // Intervall neu planen - verhindert sofortiges Einschalten bei verpasstem Zyklus
-                    id(next_cycle_timestamp) = 0;
-                    id(last_cycle_start) = millis();
                 - script.stop: led_blink
                 - light.turn_on: blue_led
               else:
@@ -633,9 +630,6 @@ switch:
           id(fault_active) = false;
           id(peak_current) = 0.0;
           id(overload_start_time) = 0;
-          // Intervall neu planen - verhindert sofortiges Einschalten bei verpasstem Zyklus
-          id(next_cycle_timestamp) = 0;
-          id(last_cycle_start) = millis();
       - script.stop: led_blink
       - light.turn_on: blue_led
     turn_off_action:
@@ -705,7 +699,8 @@ interval:
           if (idx == 0) return;
 
           static const int intervals_min[] = {0, 1, 10, 60, 120, 180, 240, 360, 480, 720, 1440};
-          int interval_sec = intervals_min[idx] * 60;
+          int interval_min = intervals_min[idx];
+          int interval_sec = interval_min * 60;
 
           // Run Duration: Index 0 = 30 sek, Index 1+ = Minuten
           int run_idx = id(run_duration).active_index().value_or(5);
@@ -716,49 +711,48 @@ interval:
           auto time = id(sntp_time).now();
           bool has_time = time.is_valid();
 
-          if (id(cycle_running) && id(relay_hw).state) {
-            // Zyklus läuft - prüfe ob Laufzeit vorbei
-            if (elapsed >= run_ms) {
-              id(relay_hw).turn_off();
-              id(cycle_running) = false;
-              ESP_LOGI("timer", "Cycle ended");
+          // 1. Zyklusende prüfen (unabhängig von Scheduling)
+          if (id(cycle_running) && id(relay_hw).state && elapsed >= run_ms) {
+            id(relay_hw).turn_off();
+            id(cycle_running) = false;
+            ESP_LOGI("timer", "Cycle ended");
+          }
 
-              if (has_time && id(next_cycle_timestamp) > 0) {
-                // Nächster Zyklus = letzter Start + Intervall (bereits runde Zeit)
-                time_t next = id(next_cycle_timestamp) + interval_sec;
-                id(next_cycle_timestamp) = next;
-                ESP_LOGI("timer", "Next cycle at %02d:00", (int)((next % 86400) / 3600));
+          // 2. Scheduling (unabhängig von Relay-Status)
+          if (has_time) {
+            // Initiale Planung wenn ts=0
+            if (id(next_cycle_timestamp) == 0) {
+              time_t next = time.timestamp + interval_sec;
+              if (interval_min >= 60) {
+                next = ((next / 3600) + 1) * 3600;
               }
+              id(next_cycle_timestamp) = next;
+              ESP_LOGI("timer", "Cycle scheduled");
             }
-          } else if (!id(relay_hw).state) {
-            // Planung immer (auch bei Fault)
-            if (has_time) {
-              if (id(next_cycle_timestamp) == 0) {
-                int interval_min = intervals_min[idx];
-                time_t next = time.timestamp + interval_sec;
-                // Nur bei Stunden-Intervallen (>=60 min) auf volle Stunde runden
-                if (interval_min >= 60) {
-                  next = ((next / 3600) + 1) * 3600;
-                }
-                id(next_cycle_timestamp) = next;
-                ESP_LOGI("timer", "Cycle scheduled");
-              }
-              // Einschalten nur ohne Fault
-              if (!id(fault_active) && time.timestamp >= id(next_cycle_timestamp)) {
+
+            // Zeitplan: wenn Zeit erreicht
+            if (id(next_cycle_timestamp) > 0 && time.timestamp >= id(next_cycle_timestamp)) {
+              // Zyklus starten wenn möglich
+              if (!id(relay_hw).state && !id(fault_active)) {
                 id(last_cycle_start) = millis();
                 id(cycle_running) = true;
                 id(relay_hw).turn_on();
                 ESP_LOGI("timer", "Cycle started");
               }
-            } else if (!id(fault_active)) {
-              // Ohne SNTP: Fallback auf millis() (nur ohne Fault)
-              uint32_t interval_ms = (uint32_t)interval_sec * 1000;
-              if (elapsed >= interval_ms) {
-                id(last_cycle_start) = millis();
-                id(cycle_running) = true;
-                id(relay_hw).turn_on();
-                ESP_LOGI("timer", "Cycle started (no SNTP)");
+
+              // Zum nächsten Zyklus vorspringen (überspringe verpasste)
+              while (time.timestamp >= id(next_cycle_timestamp)) {
+                id(next_cycle_timestamp) = id(next_cycle_timestamp) + interval_sec;
               }
+            }
+          } else if (!id(fault_active) && !id(relay_hw).state) {
+            // Ohne SNTP: Fallback auf millis()
+            uint32_t interval_ms = (uint32_t)interval_sec * 1000;
+            if (elapsed >= interval_ms) {
+              id(last_cycle_start) = millis();
+              id(cycle_running) = true;
+              id(relay_hw).turn_on();
+              ESP_LOGI("timer", "Cycle started (no SNTP)");
             }
           }
 
