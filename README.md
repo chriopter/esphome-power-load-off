@@ -35,7 +35,7 @@ Relais startet aus, Störung ist aktiv (Sicherheitsfreigabe erforderlich). Einst
 
 Der Zeitplan läuft während einer Störung weiter (verpasste Zyklen werden übersprungen). Nach Freigabe startet der nächste reguläre Zyklus.
 
-Beispiel (1h Intervall): Störung um 12:01 → 12:00 verpasst, Zeitplan springt auf 13:00. Freigabe um 12:30 → nächster Start 13:00.
+Beispiel (1h Intervall): Störung um 11:59 → 12:00 kann nicht starten, Zeitplan springt auf 13:00. Freigabe um 12:30 → nächster Start 13:00.
 
 ## Einstellungen
 
