@@ -71,3 +71,10 @@ Athom Smart Plug V3 (ESP32-C3): GPIO3=Taste, GPIO5=Relais, GPIO6=LED, GPIO20=CSE
 **Persistiert:** Stromlimit, Stromlimit (Verzögerung), Intervall, Intervalllänge, Energie (Gesamt)
 
 </details>
+
+<details>
+<summary><strong>Bekannte Einschränkungen</strong></summary>
+
+- Manuelles Einschalten direkt nach Sicherheitsfreigabe (< 1 Sek.) kann Zeitplan zurücksetzen. Workaround: kurz warten oder Relay automatisch starten lassen.
+
+</details>
