@@ -4,7 +4,7 @@ ESPHome für Athom Smart Plug V3 mit Überstromschutz und Intervall-Timer.
 
 - **Überstromschutz:** Bei Überstrom schaltet das Relais ab und geht in Störung.
 - **Intervalllänge:** Relais schaltet nach dieser Zeit automatisch ab.
-- **Intervall (optional):** Startet Relais automatisch in diesem Abstand. Stunden-Intervalle starten zur vollen Stunde (z.B. 9:46 + 2h → 12:00), Minuten-Intervalle sofort. Ohne WiFi per Timer statt Uhrzeit.
+- **Intervall (optional):** Startet Relais automatisch in diesem Abstand. Stunden-Intervalle starten zur vollen Stunde (z.B. 9:46 + 2h → 12:00), Minuten-Intervalle sofort. Manuelles Schalten beeinflusst den Zeitplan nicht. Ohne WiFi per Timer statt Uhrzeit.
 
 ## Status
 
@@ -33,9 +33,9 @@ Relais startet aus, Störung ist aktiv (Sicherheitsfreigabe erforderlich). Einst
 
 ## Sicherheitsfreigabe
 
-Bei Störung zurücksetzen wird das Intervall neu geplant. Das Relais schaltet **nicht** sofort ein, auch wenn der geplante Zeitpunkt bereits verstrichen ist.
+Der Zeitplan läuft während einer Störung weiter (verpasste Zyklen werden übersprungen). Nach Freigabe startet der nächste reguläre Zyklus.
 
-Beispiel: Zyklus war für 12:00 geplant, Störung wurde um 12:30 zurückgesetzt → nächster Zyklus wird für 13:00 geplant (bei 1h Intervall).
+Beispiel (1h Intervall): Störung um 12:01 → 12:00 verpasst, Zeitplan springt auf 13:00. Freigabe um 12:30 → nächster Start 13:00.
 
 ## Einstellungen
 
