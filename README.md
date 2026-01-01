@@ -27,15 +27,17 @@ ESPHome für Athom Smart Plug V3 mit Überstromschutz und Intervall-Timer.
 
 **Relais an für Intervalllänge
 
-## Nach Stromausfall / Neustart
-
-Relais startet aus, Störung ist aktiv (Sicherheitsfreigabe erforderlich). Einstellungen bleiben erhalten, Zeitplan wird neu berechnet (jetzt + Intervall).
-
 ## Sicherheitsfreigabe
+
+Schalter in Home Assistant der das Relais freigibt. Ohne Freigabe kann das Relais nicht einschalten (weder manuell noch automatisch).
 
 Der Zeitplan läuft während einer Störung weiter (verpasste Zyklen werden übersprungen). Nach Freigabe startet der nächste reguläre Zyklus.
 
 Beispiel (1h Intervall): Störung um 11:59 → 12:00 kann nicht starten, Zeitplan springt auf 13:00. Freigabe um 12:30 → nächster Start 13:00.
+
+## Nach Stromausfall / Neustart
+
+Relais startet aus, Störung ist aktiv (Sicherheitsfreigabe erforderlich). Einstellungen bleiben erhalten, Zeitplan wird neu berechnet (jetzt + Intervall).
 
 ## Einstellungen
 
