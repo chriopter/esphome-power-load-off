@@ -29,7 +29,7 @@ ESPHome für Athom Smart Plug V3 mit Überstromschutz und Intervall-Timer.
 
 ## Sicherheitsfreigabe
 
-Schalter in Home Assistant der das Relais freigibt. Ohne Freigabe kann das Relais nicht einschalten (weder manuell noch automatisch).
+Schalter in Home Assistant der das Relais freigibt. Wird automatisch deaktiviert bei Überstrom oder nach Neustart. Ohne Freigabe kann das Relais nicht einschalten (weder manuell noch automatisch).
 
 Der Zeitplan läuft während einer Störung weiter (verpasste Zyklen werden übersprungen). Nach Freigabe startet der nächste reguläre Zyklus.
 
