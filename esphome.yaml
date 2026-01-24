@@ -70,6 +70,8 @@ logger:
   level: INFO
 
 api:
+  reboot_timeout: 0s
+
 
 ota:
   - platform: esphome
@@ -78,6 +80,7 @@ wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
   ap: {}
+  reboot_timeout: 0s
 
 captive_portal:
 
