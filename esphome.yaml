@@ -849,6 +849,21 @@ text_sensor:
     name: "ESPHome-Version"
     entity_category: diagnostic
 
+  - platform: template
+    name: "Reset Reason"
+    entity_category: diagnostic
+    lambda: |-
+      switch (esp_reset_reason()) {
+        case ESP_RST_POWERON: return {"Power On"};
+        case ESP_RST_SW: return {"Software Reset"};
+        case ESP_RST_PANIC: return {"Panic/Exception"};
+        case ESP_RST_INT_WDT: return {"Interrupt Watchdog"};
+        case ESP_RST_TASK_WDT: return {"Task Watchdog"};
+        case ESP_RST_WDT: return {"Other Watchdog"};
+        case ESP_RST_BROWNOUT: return {"Brownout"};
+        default: return {"Unknown"};
+      }
+
 ################################################
 #
 # ZEIT
