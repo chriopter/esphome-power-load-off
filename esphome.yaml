@@ -81,6 +81,7 @@ wifi:
   password: !secret wifi_password
   ap: {}
   reboot_timeout: 0s
+  power_save_mode: none
 
 captive_portal:
 
@@ -528,6 +529,13 @@ sensor:
     name: "WLAN-Signal"
     update_interval: 60s
     entity_category: diagnostic
+
+  - platform: template
+  name: "Freier Heap"
+  unit_of_measurement: "B"
+  entity_category: diagnostic
+  lambda: 'return heap_caps_get_free_size(MALLOC_CAP_8BIT);'
+  update_interval: 60s
 
 ################################################
 #
